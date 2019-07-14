@@ -11,6 +11,7 @@ CmdBuffer<32> myBuffer;
 int ranges[6] = {-1,-1,-1,-1,-1,-1};
 int counter[6] = {-1,-1,-1,-1,-1,-1};
 
+
 // the setup function runs once when you press reset or power the board
 void setup() {
   // initialize digital pin LED_BUILTIN as an output.
@@ -56,7 +57,7 @@ void loop() {
 //                Serial.print(": ");
 //                Serial.println(cmdParser.getCmdParam(i));
 //            }
-            }
+            } 
         } else {
             Serial.println("Parser error!");
         }
@@ -79,7 +80,7 @@ void setRange(int id, int range)
 
   for (int i = 0; i < 6; i++)
   {
-    Serial.print(ranges[i]);
+    Serial.print(int(ranges[i]/10));
     Serial.print("\t");
   }
 
