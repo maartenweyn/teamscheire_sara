@@ -65,15 +65,15 @@ def intersectTwoCircles(x1,y1,r1, x2,y2,r2) :
   r2r2 = (r1*r1 - r2*r2)
   c = math.sqrt(2 * (r1*r1 + r2*r2) / R2 - (r2r2 * r2r2) / R4 - 1)
 
-  fx = (x1+x2) / 2 + a * (x2 - x1);
-  gx = c * (y2 - y1) / 2;
-  ix1 = fx + gx;
-  ix2 = fx - gx;
+  fx = (x1+x2) / 2 + a * (x2 - x1)
+  gx = c * (y2 - y1) / 2
+  ix1 = fx + gx
+  ix2 = fx - gx
 
-  fy = (y1+y2) / 2 + a * (y2 - y1);
-  gy = c * (x1 - x2) / 2;
-  iy1 = fy + gy;
-  iy2 = fy - gy;
+  fy = (y1+y2) / 2 + a * (y2 - y1)
+  gy = c * (x1 - x2) / 2
+  iy1 = fy + gy
+  iy2 = fy - gy
 
   # note if gy == 0 and gx == 0 then the circles are tangent and there is only one solution
   # but that one solution will just be duplicated as the code is currently written
@@ -83,14 +83,6 @@ def intersectTwoCircles(x1,y1,r1, x2,y2,r2) :
 fig1 = plt.figure()
 ax = fig1.add_subplot(111, aspect='equal')
 
-# cen = (2.0,1.0); 
-# r = 3.0
-# circle = patches.Circle(cen, r, facecolor='none')
-#ax.add_patch(circle)
-
-#ax.set_xlim(-1.5, 21.5)
-#ax.set_ylim(-1.5, 41.5)
-
 ax.set_xlim(-20, 40)
 ax.set_ylim(-20, 60)
 
@@ -98,10 +90,10 @@ rect = patches.Rectangle([0, 0], 20, 40, fill=False)
 ax.add_patch(rect)
 
 for key in letters:
-  ax.text(letters[key][0], letters[key][1], key, fontsize=10, horizontalalignment='center', color='r')
+  ax.text(letters[key][0], letters[key][1], key, fontsize=10, horizontalalignment='center', verticalalignment='center', color='r')
 
 for key in real_node_positions:
-  ax.text(real_node_positions[key][0], real_node_positions[key][1], key, fontsize=12, horizontalalignment='center', color='b')
+  ax.text(real_node_positions[key][0], real_node_positions[key][1], key, fontsize=12, horizontalalignment='center', verticalalignment='center', color='b')
   circle = patches.Circle(real_node_positions[key], 0.5, facecolor='y')
   ax.add_patch(circle)
     
@@ -251,6 +243,10 @@ for achor in real_node_positions:
   print ("error", error)
     
 fig1.savefig('calibration.png', dpi=180, bbox_inches='tight')
+
+
+
+
 
 
 
