@@ -18,10 +18,13 @@ void uwb_parser_init() {
 }
 
 // Parsing of UWB data
-static void setRange(int id, int range)
+static bool setRange(int id, int range)
 {
   static int last_id = 100;
-  ranges[id-1] = range;
+
+  bool got_position = false;
+  
+  ranges[id-1] = range / 10;
   for (int i = 0; i < 6; i++)
   {
     if ( i == id - 1) {
@@ -33,19 +36,32 @@ static void setRange(int id, int range)
   }
 
   if (id < last_id) { 
-    processMeasurement();
+    got_position = processMeasurement();
   }
 
   last_id = id;
+
+  return got_position;
 }
 
 
- void uwb_parser_check_data() {
-    if (myBuffer.readFromSerial(&Serial2, 30000)) {
-      if (cmdParser.parseCmd(&myBuffer) != CMDPARSER_ERROR) {
-        if (cmdParser.getParamCount() > 1 ) {
-              setRange(atoi(cmdParser.getCommand()), atoi(cmdParser.getCmdParam(2)));
-        }
+ bool uwb_parser_check_data() {
+  static int counter = 0;
+
+  bool got_position = false;
+  
+  if (myBuffer.readFromSerial(&Serial2, 30000)) {
+    if (cmdParser.parseCmd(&myBuffer) != CMDPARSER_ERROR) {
+      if (cmdParser.getParamCount() > 1 ) {
+        counter = 0;
+        got_position = setRange(atoi(cmdParser.getCommand()), atoi(cmdParser.getCmdParam(2)));
+      } else {
+        counter++;
+        if (counter > 100)
+          Serial.println(cmdParser.getCommand());
       }
     }
+  }
+
+  return got_position;
  }

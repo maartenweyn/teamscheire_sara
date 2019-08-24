@@ -46,6 +46,10 @@ colors = {
   4 : [0.5, 0.5, 0]}
 
 
+field = [20, 40]
+field_size_marging  = 2
+
+
 # x1,y1 is the center of the first circle, with radius r1
 # x2,y2 is the center of the second ricle, with radius r2
 def intersectTwoCircles(x1,y1,r1, x2,y2,r2) :
@@ -174,6 +178,8 @@ for pos in full_path:
 
   intersections = {}
   intersections_filtered = {}
+
+  print ("counter", counter)
   
   for key in real_node_positions:
     #ax.text(real_node_positions[key][0], real_node_positions[onedkey][1], key, fontsize=12, horizontalalignment='center', color='g')
@@ -210,68 +216,90 @@ for pos in full_path:
 
     inter = intersectTwoCircles(x1, y1, dist1, x2, y2, dist2)
 
-    # print (inter)
-
     if (inter):
-      circle1 = patches.Circle(inter[0], 0.5, facecolor='none', edgecolor='black')
-      circle2 = patches.Circle(inter[1], 0.5, facecolor='none', edgecolor='black')
-      ax.add_patch(circle1)
-      ax.add_patch(circle2)
-      circles.append(circle1)
-      circles.append(circle2)
-      intersections[counter].append(inter)
+      selected = []
+      
+      for intersection in inter:
+        print ("intersection", intersection)
+        print ("x margin", -field_size_marging, field[0] + field_size_marging)
+        print ("y margin", -field_size_marging, field[1] + field_size_marging)
+        if (intersection[0] >= -field_size_marging and intersection[0] <= field[0] + field_size_marging
+          and intersection[1] >= -field_size_marging and intersection[1] <= field[1] + field_size_marging): 
+  
+            print("selected")
+            sum_inter[0] += intersection[0]
+            sum_inter[1] += intersection[1]
+            nr_intersections += 1
 
-      for i in inter:
-        sum_inter[0] += i[0]
-        sum_inter[1] += i[1]
-        nr_intersections += 1
+            circle1 = patches.Circle(intersection, 0.5, facecolor='none', edgecolor='black')
+            ax.add_patch(circle1)
+            circles.append(circle1)
+            selected.append(intersection)
+
+      print("selected", selected)
+      if (len(selected) > 0):
+        intersections[counter].append(selected)
+          
 
   avg_inter = [sum_inter[0] / nr_intersections, sum_inter[1] / nr_intersections]
 
   # print ("intersections", intersections[achor])
   print ("temp", avg_inter)
 
-  sum_inter = [0 , 0]
-  nr_intersections = 0
-  for i in intersections[counter]:
-    d1 = (i[0][0] - avg_inter[0]) ** 2 + (i[0][1] - avg_inter[1]) ** 2 
-    d2 = (i[1][0] - avg_inter[0]) ** 2 + (i[1][1] - avg_inter[1]) ** 2 
+  # sum_inter = [0 , 0]
+  # nr_intersections = 0
+  # for i in intersections[counter]:
+  #   print("intersection", i)
+  #   d1 = (i[0] - avg_inter[0]) ** 2 + (i[1] - avg_inter[1]) ** 2 
+  #   if d1 < dist_thr :
+  #     sum_inter[0] += i[0][0]
+  #     sum_inter[1] += i[0][1]
+  #     nr_intersections += 1
 
-    if d1 < dist_thr :
-      sum_inter[0] += i[0][0]
-      sum_inter[1] += i[0][1]
-      nr_intersections += 1
-    if d2 < dist_thr :
-      sum_inter[0] += i[1][0]
-      sum_inter[1] += i[1][1]
-      nr_intersections += 1
+  #   if len(i) > 1:
+  #     d2 = (i[1][0] - avg_inter[0]) ** 2 + (i[1][1] - avg_inter[1]) ** 2 
+  #     if d2 < dist_thr :
+  #       sum_inter[0] += i[1][0]
+  #       sum_inter[1] += i[1][1]
+  #       nr_intersections += 1
 
   # print ("Intersection")
 
-  avg_inter2 = [sum_inter[0] / nr_intersections, sum_inter[1] / nr_intersections]
-
-  for i in intersections[counter]:
-    d1 = (i[0][0] - avg_inter2[0]) ** 2 + (i[0][1] - avg_inter2[1]) ** 2 
-    d2 = (i[1][0] - avg_inter2[0]) ** 2 + (i[1][1] - avg_inter2[1]) ** 2 
-
-    if (d1 < d2):
-      intersections_filtered[counter].append(i[0])
-      circle1 = patches.Circle(i[0], 0.5, facecolor='r', edgecolor='black')
-      circle2 = patches.Circle(i[1], 0.5, facecolor='none', edgecolor='black')
-    else:
-      intersections_filtered[counter].append(i[1])
-      circle1 = patches.Circle(i[1], 0.5, facecolor='r', edgecolor='black')
-      circle2 = patches.Circle(i[0], 0.5, facecolor='none', edgecolor='black')
-
-    ax.add_patch(circle1)
-    ax.add_patch(circle2)
-    circles.append(circle1)
-    circles.append(circle2)
+  # avg_inter2 = [sum_inter[0] / nr_intersections, sum_inter[1] / nr_intersections]
   
-  circle = patches.Circle(avg_inter, 0.5, facecolor='r', edgecolor='y')
-  ax.add_patch(circle)
-  circles.append(circle)
-  circle = patches.Circle(avg_inter2, 0.5, facecolor='r', edgecolor='g')
+  for i in intersections[counter]:
+    print ("intersection", i)
+    if (len(i) > 1): 
+      d1 = (i[0][0] - avg_inter[0]) ** 2 + (i[0][1] - avg_inter[1]) ** 2 
+      d2 = (i[1][0] - avg_inter[0]) ** 2 + (i[1][1] - avg_inter[1]) ** 2 
+
+      print ("d1, d2", d1, d2)
+
+      if (d1 < d2):
+        intersections_filtered[counter].append(i[0])
+        circle1 = patches.Circle(i[0], 0.5, facecolor='r', edgecolor='none')
+        circle2 = patches.Circle(i[1], 0.5, facecolor='none', edgecolor='black')
+      else:
+        intersections_filtered[counter].append(i[1])
+        circle1 = patches.Circle(i[1], 0.5, facecolor='r', edgecolor='none')
+        circle2 = patches.Circle(i[0], 0.5, facecolor='none', edgecolor='black')
+
+        ax.add_patch(circle1)
+        ax.add_patch(circle2)
+        circles.append(circle1)
+        circles.append(circle2)
+    else:
+      intersections_filtered[counter].append(i[0])
+      circle1 = patches.Circle(i[0], 0.5, facecolor='r', edgecolor='none')
+      ax.add_patch(circle1)
+      circles.append(circle1)
+    
+
+  
+  # circle = patches.Circle(avg_inter, 0.5, facecolor='r', edgecolor='y')
+  # ax.add_patch(circle)
+  # circles.append(circle)
+  circle = patches.Circle(avg_inter, 0.5, facecolor='b', edgecolor='black')
   ax.add_patch(circle)
   circles.append(circle)
 
@@ -289,7 +317,7 @@ for pos in full_path:
   # print ("filtered", intersections_filtered[achor])
   print ("final", avg_inter)
 
-  circle_estimation = patches.Circle(avg_inter, 0.5, facecolor='g')
+  circle_estimation = patches.Circle(avg_inter, 0.5, facecolor='black')
   circle_estimation.set_alpha(0.5)
   ax.add_patch(circle_estimation)
   circles.append(circle_estimation)
@@ -303,7 +331,7 @@ for pos in full_path:
 
   estimations.append([avg_inter[0], avg_inter[1], near_letter])
 
-  #fig1.savefig('img/localization_is_'+str(counter).zfill(3)+'.png', dpi=180, bbox_inches='tight')
+  fig1.savefig('img/localization_is_'+str(counter).zfill(3)+'.png', dpi=180, bbox_inches='tight')
 
   for circle in circles:
     circle.remove()

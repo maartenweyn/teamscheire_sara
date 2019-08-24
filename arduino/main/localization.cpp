@@ -2,14 +2,224 @@
 #include "main.h"
 
 
-void processMeasurement() {
+
+
+typedef struct {
+  char letter;
+  int ranges[6];
+  int count;
+} calibration_ranges_t;
+
+typedef struct {
+  char letter;
+  int x;
+  int y;
+} letter_position_t;
+
+
+letter_position_t letters[] = {
+  {'A', 10, 0},
+  {'K', 0, 6},
+  {'E', 0, 20}, 
+  {'H', 0, 34}, 
+  {'C', 10, 40}, 
+  {'M', 20, 34}, 
+  {'B', 20, 20}, 
+  {'F', 20, 6}, 
+  {'D', 10, 6}, 
+  {'X', 10, 20}, 
+  {'G', 10, 34}
+};
+
+
+calibration_ranges_t calibration_data[] = {
+    {'H', {0,0,0,0,0,0}, 0},
+    {'K', {0,0,0,0,0,0}, 0},
+    {'F', {0,0,0,0,0,0}, 0},
+    {'M', {0,0,0,0,0,0}, 0},
+    {'E', {0,0,0,0,0,0}, 0},
+    {'B', {0,0,0,0,0,0}, 0}};
+
+position_t node_positions[6];
+//= {
+//  {015, 480},
+//  {015, 000},
+//  {1705, 450},
+//  {1705, 030},
+//  {0, 0},
+//  {0, 0}};
+
+position_t current_position;
+
+int connected_anchors = 0;
+int last_position_counter = 0;
+
+
+bool intersectTwoCircles(position_t p1, int r1, position_t p2, int r2, position_t* i1, position_t* i2) {
+  int centerdx = p1.x - p2.x;
+  int centerdy = p1.y - p2.y;
+  
+  int R = sqrt(centerdx * centerdx + centerdy * centerdy);
+  Serial.printf("r, r, R %d, %d, %d\n", r1, r2, R);
+
+  if (! ((abs(r1 - r2) <= R)  && (R <= r1 + r2))) {// no intersection
+    return false;
+  }
+
+
+  //intersection(s) should exist
+
+  int R2 = R*R;
+  int R4 = R2*R2;
+  float  a = (r1*r1 - r2*r2) / (2 * R2);
+  int r2r2 = (r1*r1 - r2*r2);
+  int c = sqrt(2 * (r1*r1 + r2*r2) / R2 - (r2r2 * r2r2) / R4 - 1);
+
+  int fx = (p1.x + p2.x) / 2 + a * (p2.x - p1.x);
+  int gx = c * (p2.y - p1.y) / 2;
+  i1->x = fx + gx;
+  i2->x = fx - gx;
+
+  int fy = (p1.y+p2.y) / 2 + a * (p2.y - p1.y);
+  int gy = c * (p1.x - p2.x) / 2;
+  i1->y = fy + gy;
+  i2->y = fy - gy;
+
+  Serial.printf("a, c, fx, gx, fy, gy: %d, %d, %d, %d, %d, %d\n", a, c, fx, gx, fy, gy);
+
+//  # note if gy == 0 and gx == 0 then the circles are tangent and there is only one solution
+//  # but that one solution will just be duplicated as the code is currently written
+//  return [[ix1, iy1], [ix2, iy2]]
+  return true;
+}
+
+bool processMeasurement() {
+  static position_t intersections[30] = {0,};
+  static int nr_of_intersections = 0;
+  static int intersection_pointer = 0;
+  static position_t sum_intersection;
+
+  
+  // Visual Feedback
   led_mode != led_mode;
   digitalWrite(LED, led_mode);
 
+  // Print ranges
   for (int i = 0; i < 6; i++)
   {
-    Serial.print(int(ranges[i]/10));
+    Serial.print(int(ranges[i]));
+    Serial.print("\t");
+  }
+  Serial.print(" - ");
+    for (int i = 0; i < 6; i++)
+  {
+    Serial.print(int(counter[i]));
     Serial.print("\t");
   }
   Serial.println();
+
+
+  // Calculate intersections
+  nr_of_intersections = 0;
+  intersection_pointer = 0;
+  sum_intersection.x = 0;
+  sum_intersection.y = 0;
+  
+  for (int i = 0; i < 5; i++) {
+    if (counter[i] < USE_MEASUREMENT_THRESHOLD) {
+      for (int j = i + 1; j < 6; j++) {
+        if (counter[j] < USE_MEASUREMENT_THRESHOLD) {
+          Serial.printf("find intersection %d, %d:", i, j);
+          position_t i1;
+          position_t i2;
+          if (intersectTwoCircles(node_positions[i], ranges[i], node_positions[j], ranges[j], &i1, &i2)) {
+            Serial.printf("-> (%d, %d), (%d, %d)\n", i1.x, i1.y, i2.x, i2.y);
+            bool good_intersection = false;
+            if (i1.x >= -FIELD_SIZE_MARGIN && i1.x <= FIELD_SIZE_X + FIELD_SIZE_MARGIN
+              && i1.y >= -FIELD_SIZE_MARGIN && i1.y <= FIELD_SIZE_Y + FIELD_SIZE_MARGIN) {
+                good_intersection = true;
+                intersections[intersection_pointer * 2].x = i1.x;
+                intersections[intersection_pointer * 2].y = i1.y;
+                sum_intersection.x += i1.x;
+                sum_intersection.y += i1.y;
+                nr_of_intersections++;
+            } else {
+               intersections[intersection_pointer * 2].x = -100;
+               intersections[intersection_pointer * 2].y = -100;
+            }
+            if ((i2.x >= -FIELD_SIZE_MARGIN && i2.x <= FIELD_SIZE_X + FIELD_SIZE_MARGIN)
+              && (i2.y >= -FIELD_SIZE_MARGIN && i2.y <= FIELD_SIZE_Y + FIELD_SIZE_MARGIN)){
+                good_intersection = true;
+                intersections[1 + intersection_pointer * 2].x = i2.x;
+                intersections[1 + intersection_pointer * 2].y = i2.y;
+                sum_intersection.x += i2.x;
+                sum_intersection.y += i2.y;
+                nr_of_intersections++;
+            } else {
+               intersections[1 + intersection_pointer * 2].x = -100;
+               intersections[1 + intersection_pointer * 2].y = -100;
+            }
+
+            if (good_intersection) {
+              intersection_pointer++;
+            }
+          } else {
+            Serial.printf("none\n");
+          }
+        }
+      }
+    }
+  }
+
+
+  if (nr_of_intersections == 0) {
+    // no intersections
+    last_position_counter++;
+    return false;
+  }
+  
+  position_t avg_intersection = {sum_intersection.x / nr_of_intersections, sum_intersection.y / nr_of_intersections};
+  sum_intersection.x = 0;
+  sum_intersection.y = 0;
+
+  // select the intersections closed to the current average, if there are 2
+  for (int i = 0; i < intersection_pointer; i++) {
+    position_t selected_position;
+    if (intersections[i*2].x == -100) {
+      selected_position.x = intersections[1 + i*2].x;
+      selected_position.y = intersections[1 + i*2].y;
+    } else if (intersections[1 + i*2].x == -100) {
+      selected_position.x = intersections[i*2].x;
+      selected_position.y = intersections[i*2].y;
+    } else {
+      int diffx1 = (intersections[i*2].x - avg_intersection.x);
+      int diffy1 = (intersections[i*2].y - avg_intersection.y);
+      int d1 = diffx1 * diffx1 + diffy1 * diffy1;
+      int diffx2 = (intersections[1+i*2].x - avg_intersection.x);
+      int diffy2 = (intersections[1+i*2].y - avg_intersection.y);
+      int d2 = diffx2 * diffx2+ diffy2 * diffy2;
+      if (d1 <= d2) {
+        selected_position.x = intersections[i*2].x;
+        selected_position.y = intersections[i*2].y;
+      } else {
+        selected_position.x = intersections[1 + i*2].x;
+        selected_position.y = intersections[1 + i*2].y;
+      }
+    }
+    intersections[i].x = selected_position.x;
+    intersections[i].y = selected_position.y;
+    sum_intersection.x += selected_position.x;
+    sum_intersection.y += selected_position.y;
+  }
+
+  current_position.x = sum_intersection.x / intersection_pointer;
+  current_position.y = sum_intersection.y / intersection_pointer;
+
+  last_position_counter = 0;
+  return true;
+}
+
+
+void setCalibration(char letter) {
+  
 }
