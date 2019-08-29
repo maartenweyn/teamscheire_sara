@@ -3,8 +3,6 @@
 
 #define USE_MEASUREMENT_THRESHOLD 24 //4 * 6 (can miss 3 cycles)
 
-#define NEARBY_THRESHOLD 90000 // 3.00 m * 3.00 m
-
 #define FIELD_SIZE_X      2200
 #define FIELD_SIZE_Y      490
 #define FIELD_SIZE_MARGIN 200

@@ -1,4 +1,12 @@
+#ifndef LOCALIZATION_H
+#define LOCALIZATION_H
+
 #include "main.h"
+
+
+#include <stdbool.h>
+
+#define NR_OF_LETTERS 11
 
 typedef struct {
   char letter;
@@ -12,8 +20,7 @@ typedef struct {
   int y;
 } letter_position_t;
 
-extern position_t node_positions[6];
-extern letter_position_t letters[11];
+extern letter_position_t letters[NR_OF_LETTERS];
 extern position_t current_position;
 extern int connected_anchors;
 extern int last_position_counter;
@@ -21,3 +28,5 @@ extern int nearby_letter;
 
 bool processMeasurement();
 void setCalibration(char letter);
+
+#endif

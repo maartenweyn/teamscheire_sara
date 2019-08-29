@@ -19,6 +19,10 @@
 #include "cJSON.h"
 #include <dirent.h>
 
+#include "localization.h"
+#include "app_config.h"
+
+
 #define TAG "webserver:"
 
 
@@ -40,9 +44,7 @@ static char chunk_len[15];
 const static char not_found_page[] = "<!DOCTYPE html>"
       "<html>\n"
       "<head>\n"
-      "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-     // "	 <link href=\"https://cdn.bootcss.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css\" rel=\"stylesheet\">\n"
-     // "  <script src=\"https://cdn.bootcss.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js\"></script>\n"
+      "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
       "<title>Team Scheire</title>\n"
       "</head>\n"
       "<body>\n"
@@ -56,25 +58,15 @@ static int header_value_callback(http_parser* a, const char *at, size_t length){
 	return 0;
 }
 static int body_callback(http_parser* a, const char *at, size_t length){
-    // static uint32_t cnt=0;
-    // printf("cnt:%d\n",cnt++);
-    //spiRamFifoWrite(at,length);
     http_body=realloc(http_body,http_body_length+length);
     memcpy(http_body+http_body_length,at,length);
     http_body_length+=length;
-  //   for(int i=0;i<length;i++)
-		// putchar(at[i]);
     return 0;
 }
 static int url_callback(http_parser* a, const char *at, size_t length){
-    // static uint32_t cnt=0;
-    // printf("cnt:%d\n",cnt++);
-    //spiRamFifoWrite(at,length);
-    http_url=realloc(http_url,http_url_length+length);
+     http_url=realloc(http_url,http_url_length+length);
     memcpy(http_url+http_url_length,at,length);
     http_url_length+=length;
-  //   for(int i=0;i<length;i++)
-		// putchar(at[i]);
     return 0;
 }
 static void chunk_end(int socket){
@@ -85,24 +77,96 @@ typedef struct
 {
   char* url;
   void(*handle)(http_parser* a,char*url,char* body);
-}HttpHandleTypeDef;
+} HttpHandleTypeDef;
 
 void web_index(http_parser* a,char*url,char* body);
-// void led_ctrl(http_parser* a,char*url,char* body);
-// void load_logo(http_parser* a,char*url,char* body);
-// void load_esp32(http_parser* a,char*url,char* body);
-void rest_readdir(http_parser* a,char*url,char* body);
-// void rest_readwav(http_parser* a,char*url,char* body);
+void load_favicon(http_parser* a,char* url, char* body);
+void calib(http_parser* a, char* url,char* body);
 
 static void not_found();
+
 const HttpHandleTypeDef http_handle[]={
 	{"/",web_index},
-	//{"/api/led/",led_ctrl},
-	// {"/static/logo.png",load_logo},
-	// {"/static/esp32.png",load_esp32},
-  {"/api/readdir/",rest_readdir},
-  // {"/api/readwav/",rest_readwav},
+	{"/favicon.ico",load_favicon},
+  {"/calib/",calib},
 };
+
+static void print_header( int refresh) {
+  // Display the HTML web page
+	char* read_buf=malloc(1024);
+	memset(read_buf, 0, 1024);
+
+	strcpy(read_buf, "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+
+	if (refresh > 0) {
+		char* temp = malloc(10);
+		sprintf(temp, "%d", refresh);
+  	strcat(read_buf, "<meta http-equiv=\"refresh\" content=\"");
+		strcat(read_buf, temp);
+		strcat(read_buf, "\">");
+	}
+
+  strcat(read_buf, "<link rel=\"icon\" href=\"data:,\">");
+  strcat(read_buf, "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto;}");
+  strcat(read_buf, ".red {color: #993300;}");
+  strcat(read_buf, ".green {color: #99cc00;}");
+  strcat(read_buf, "</style></head>");
+
+  // Web Page Heading
+  strcat(read_buf, "<body><h1>Team Scheire equestrian coach</h1>");
+
+	ESP_LOGI(TAG,"HEADER %s", read_buf);
+
+	int r = strlen(read_buf);
+	sprintf(chunk_len,"%x\r\n",r);
+	write(client_fd, chunk_len, strlen(chunk_len));
+	write(client_fd, read_buf, r);
+	write(client_fd, "\r\n", 2);
+}
+
+void print_main_content() {
+	char* read_buf=malloc(1024);
+		memset(read_buf, 0, 1024);
+		char* temp=malloc(100);
+		
+		strcpy(read_buf, "<h2>Measuruments</h2>");
+
+		strcat(read_buf, "<ul>");
+		for (int i = 0; i < 6; i++) {
+			char* temp=malloc(100);
+			if (meas_counter[i] < USE_MEASUREMENT_THRESHOLD)
+				sprintf(temp, "<li class=\"green\">Anchor %d (%d, %d): %d cm</li>", i+1, app_config.node_positions[i].x, app_config.node_positions[i].y, meas_ranges[i]);
+			else
+				sprintf(temp, "<li class=\"red\">Anchor %d (%d, %d)</li>", i+1, app_config.node_positions[i].x, app_config.node_positions[i].y);
+			strcat(read_buf, temp);
+		}
+		strcat(read_buf, "</ul>");
+
+		strcat(read_buf, "<h2>Position</h2>");
+		sprintf(temp, "<p>Position: (%d, %d)<br>Delay: %d</p>",  current_position.x, current_position.y, last_position_counter);
+		strcat(read_buf, temp);
+
+		if (nearby_letter ==  -1) 
+		{
+			strcat(read_buf, "<p>Letter:  None</p>");
+		} else {
+			sprintf(temp, "<p>Letter:  %c</p>", letters[nearby_letter].letter);
+			strcat(read_buf, temp);
+		}
+
+		strcat(read_buf, "</body></html>");
+
+		ESP_LOGI(TAG,"CONTENT %s", read_buf);
+
+		int r = strlen(read_buf);
+		sprintf(chunk_len,"%x\r\n",r);
+		write(client_fd, chunk_len, strlen(chunk_len));
+		write(client_fd, read_buf, r);
+		write(client_fd, "\r\n", 2);
+
+		chunk_end(client_fd);
+}
+
 static void return_file(char* filename){
 	uint32_t r;
 	char* read_buf=malloc(1024);
@@ -125,6 +189,7 @@ static void return_file(char* filename){
     fclose(f);
   	chunk_end(client_fd);
 }
+
 static void not_found(){
 	char *request;
   	asprintf(&request,RES_HEAD,"text/html");//html
@@ -138,117 +203,78 @@ static void not_found(){
 
 		ESP_LOGE(TAG,"URL not found");
 }
-// void load_logo(http_parser* a,char*url,char* body){
-// 	char *request;
-//   	asprintf(&request,RES_HEAD,"image/png");//html
-//   	write(client_fd, request, strlen(request));
-//   	free(request);
-//   	return_file("/sdcard/www/static/logo.png");
-// }
-// void load_esp32(http_parser* a,char*url,char* body){
-// 	char *request;
-//   	asprintf(&request,RES_HEAD,"image/png");//html
-//   	write(client_fd, request, strlen(request));
-//   	free(request);
-//   	return_file("/sdcard/www/static/esp32.png");
-// }
+
+void load_favicon(http_parser* a, char* url, char* body){
+	char *request;
+	asprintf(&request,RES_HEAD,"image/x-icon");
+	write(client_fd, request, strlen(request));
+	free(request);
+	return_file("/sdcard/www/favicon.ico");
+}
+
 void web_index(http_parser* a,char*url,char* body){
 	char *request;
   	asprintf(&request,RES_HEAD,"text/html");//html
   	write(client_fd, request, strlen(request));
   	free(request);
-  	return_file("/sdcard/www/index.htm");
-}
-void rest_readdir(http_parser* a,char*url,char* body){
-    char *request;
-    asprintf(&request,RES_HEAD,"application/json");//json
-    write(client_fd, request, strlen(request));
-    free(request);
-    cJSON *root = cJSON_CreateArray();
-    cJSON *prev=NULL;
-    cJSON *item=NULL;
-    int i=0;
-    struct dirent *pDirEntry = NULL; 
-    DIR          *pDir      = NULL;
-    pDir=opendir("/sdcard/");
-    if(pDir==NULL){
-        ESP_LOGE(TAG,"Opendir Failed");
-        //xEventGroupWaitBits(eth_event_group,ETH_DISCONNECTED_BIT,pdTRUE,pdTRUE,portMAX_DELAY);
-    }else{
-        do{
-            item=cJSON_CreateObject();
-            pDirEntry = readdir(pDir);
-            if(pDirEntry==NULL)
-                break;
-            //printf("node:%d\ttype:%d\tfilename:%s\n",pDirEntry->d_ino,,pDirEntry->d_name);
-            cJSON_AddStringToObject(item,"filename",pDirEntry->d_name);
-            cJSON_AddNumberToObject(item,"type",pDirEntry->d_type);
-            if (i==0){
-                root->child = item;
-            }else{
-                prev->next = item;
-                item->prev = prev;
-            }
-            prev =item;
-            i++;
 
-        }while(1);
-        closedir(pDir);
-    }
-    char* out = cJSON_PrintUnformatted(root);
-    sprintf(chunk_len,"%x\r\n",strlen(out));
-    write(client_fd, chunk_len, strlen(chunk_len));
-    write(client_fd, out, strlen(out));
-    write(client_fd,"\r\n",2);
-    chunk_end(client_fd);
-    //send(client,out,strlen(out),MSG_WAITALL);
-    printf("handle_return: %s\n", out);
-    cJSON_Delete(root);
+		print_header(5);
+		print_main_content();
 }
-// void rest_readwav(http_parser* a,char*url,char* body){
-//     char *request;
-//     asprintf(&request,RES_HEAD,"audio/x-wav");//json
-//     write(client_fd, request, strlen(request));
-//     free(request);
-//     cJSON *root=NULL;
-//     root= cJSON_Parse(http_body);
-//     char* name=cJSON_GetObjectItem(root,"filename")->valuestring;
-//     return_file(name);
-//     cJSON_Delete(root);
-// }
-void led_ctrl(http_parser* a,char*url,char* body){
+
+void calib(http_parser* a, char* url, char* body) {
 	char *request;
-  	asprintf(&request,RES_HEAD,"application/json");//json
-  	write(client_fd, request, strlen(request));
-  	free(request);
-  	cJSON *root=NULL;
-    root= cJSON_Parse(http_body);
-    uint8_t led=cJSON_GetObjectItem(root,"led")->valueint;
-    cJSON_Delete(root);
-    gpio_set_level(GPIO_OUTPUT_IO_0,led);
-  	root=NULL;
-	root=cJSON_CreateObject();
-	if(root==NULL){
-		ESP_LOGI(TAG,"cjson root create failed\n");
-		return NULL;
+	asprintf(&request,RES_HEAD,"text/html");//html
+	write(client_fd, request, strlen(request));
+	free(request);
+
+	char* read_buf=malloc(500);
+	memset(read_buf, 0, 500);
+
+	strcpy(read_buf, "<a href=\"/\">Home</a>");
+
+	char* ptr;
+  char delim[] = "/";
+	ptr=strtok(url,delim);
+	ESP_LOGI(TAG, "calib: %s", ptr);
+
+	ptr = strtok(NULL, delim);
+	ESP_LOGI(TAG, "anchor_id: %s", ptr);
+	if (ptr != NULL) {
+		int anchor_id = atoi(ptr);
+
+		ptr = strtok(NULL, delim);
+		ESP_LOGI(TAG, "x_coord: %s", ptr);
+		if (ptr != NULL) {
+			int x_coord = atoi(ptr);
+
+			ptr = strtok(NULL, delim);
+			ESP_LOGI(TAG, "y_coord: %s", ptr);
+			if (ptr != NULL) {
+				int y_coord = atoi(ptr);
+				if (anchor_id <= 6 && anchor_id > 0) {
+					app_config.node_positions[anchor_id - 1].x = x_coord;
+					app_config.node_positions[anchor_id - 1].y = y_coord;
+					char* temp=malloc(100);
+					sprintf(temp, "<p class=\"green\">Anchor %d adapted</p>", anchor_id);
+					strcat(read_buf, temp);
+					save_config();
+				} else {
+					strcat(read_buf, "<p class=\"red\">Invallid anchor id</p>");
+				}
+			}
+		}
 	}
-	cJSON_AddNumberToObject(root,"err",0);
-	// cJSON_AddStringToObject(root,"cuid","esp32_whyengineer");
-	// cJSON_AddStringToObject(root,"token",access_token);
-	// cJSON_AddNumberToObject(root, "rate", 8000);
-	// cJSON_AddNumberToObject(root, "channel", 1);
-	// cJSON_AddNumberToObject(root, "len", len);
-	// cJSON_AddStringToObject(root,"speech",speech);
-	char* out = cJSON_PrintUnformatted(root);
-	sprintf(chunk_len,"%x\r\n",strlen(out));
+
+	print_header(0);
+
+	int r = strlen(read_buf);
+	sprintf(chunk_len,"%x\r\n",r);
 	write(client_fd, chunk_len, strlen(chunk_len));
-	write(client_fd, out, strlen(out));
-  free(out);
-  	write(client_fd,"\r\n",2);
-  	chunk_end(client_fd);
-	//send(client,out,strlen(out),MSG_WAITALL);
-	//printf("handle_return: %s\n", out);
-	cJSON_Delete(root);
+	write(client_fd, read_buf, r);
+	write(client_fd, "\r\n", 2);
+
+	print_main_content();
 }
 
 static int body_done_callback (http_parser* a){
@@ -347,7 +373,7 @@ int creat_socket_server(in_port_t in_port, in_addr_t in_addr)
 
 void webserver_task( void *pvParameters ){
 	int32_t lBytes;
-	esp_err_t err;
+	//esp_err_t err;
 	ESP_LOGI(TAG,"webserver start");
 	uint32_t request_cnt=0;
 

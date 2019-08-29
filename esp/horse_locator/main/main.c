@@ -38,6 +38,8 @@
 #include "app_sdcard.h"
 #include "uwb_parser.h"
 
+#include "led_strip.h"
+
 
 //#include "web_radio.h"
 
@@ -51,6 +53,8 @@
 
 #define GPIO_OUTPUT_IO_0    5
 #define GPIO_OUTPUT_PIN_SEL  ((1<<GPIO_OUTPUT_IO_0))
+
+#define LED_STRIP_LENGTH  23
 
 
 const static char letters[10] = {
@@ -119,6 +123,30 @@ void app_main()
 
 
   uwb_parser_init();   
+
+  // static struct led_color_t led_strip_buf_1[LED_STRIP_LENGTH];
+  // static struct led_color_t led_strip_buf_2[LED_STRIP_LENGTH];
+
+  // struct led_strip_t led_strip = {
+  //     .rgb_led_type = RGB_LED_TYPE_WS2812,
+  //     .rmt_channel = RMT_CHANNEL_1,
+  //     .rmt_interrupt_num = 18,
+  //     .gpio = GPIO_NUM_22,
+  //     .led_strip_buf_1 = led_strip_buf_1,
+  //     .led_strip_buf_2 = led_strip_buf_2,
+  //     .led_strip_length = LED_STRIP_LENGTH
+  // };
+  // led_strip.access_semaphore = xSemaphoreCreateBinary();
+
+  // bool led_init_ok = led_strip_init(&led_strip);
+  
+  // ESP_LOGI(TAG, "led_strip_init %d", led_init_ok);
+
+  // led_strip_set_pixel_rgb(&led_strip, 1, 255, 0, 0);
+  // led_strip_set_pixel_rgb(&led_strip, 2, 0, 255, 0);
+  // led_strip_set_pixel_rgb(&led_strip, 3, 0, 0, 255);
+
+  // led_strip_show(&led_strip);
 
   xTaskCreate(locator_task, "locator_task", 4096, NULL, 5, NULL);
   xTaskCreate(webserver_task, "webserver_task", 4096, NULL, 5, NULL);

@@ -126,6 +126,15 @@ esp_err_t load_config() {
         strcpy(app_config.wifi_passwd, wifi_passwd->valuestring);
     }
 
+    const cJSON *nearby_threshold = cJSON_GetObjectItemCaseSensitive(json, "nearby_threshold");
+    if (cJSON_IsNumber(nearby_threshold))
+    {
+      ESP_LOGE(TAG, "nearby_threshold \"%d\"\n", nearby_threshold->valueint);
+      app_config.nearby_threshold =  nearby_threshold->valueint;
+    } else {
+      app_config.nearby_threshold =  DEF_NEARBY_THRESHOLD;
+    }
+
     const cJSON *node_positions = cJSON_GetObjectItemCaseSensitive(json, "node_positions");
     const cJSON *position = NULL;
     int counter = 0;
