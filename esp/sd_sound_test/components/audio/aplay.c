@@ -36,7 +36,7 @@ void aplay_wav(char* filename){
 	//fprintf(f, "Hello %s!\n", card->cid.name);
 	int rlen=fread(&wav_head,1,sizeof(wav_head),f);
 	if(rlen!=sizeof(wav_head)){
-			ESP_LOGE(TAG,"read faliled");
+			ESP_LOGE(TAG,"read failed");
 			return;
 	}
 	int channels = wav_head.wChannels;
@@ -45,6 +45,25 @@ void aplay_wav(char* filename){
 	int datalen= wav_head.wSampleLength;
 	(void)datalen;
 	ESP_LOGI(TAG,"channels:%d,frequency:%d,bit:%d\n",channels,frequency,bit);
+
+	char* samples_data = malloc(1024);
+	do{
+		rlen=fread(samples_data,1,1024,f);
+		//datalen-=rlen;
+		hal_i2s_write(0,samples_data,rlen,5000);
+	}while(rlen>0);
+	fclose(f);
+	free(samples_data);
+	f=NULL;
+}
+
+void aplay_raw(char* filename){
+	FILE *f= fopen(filename, "r");
+	if (f == NULL) {
+			ESP_LOGE(TAG,"Failed to open file:%s",filename);
+			return;
+	}
+	int rlen;
 	char* samples_data = malloc(1024);
 	do{
 		rlen=fread(samples_data,1,1024,f);
@@ -146,7 +165,9 @@ void aplay_mp3(char *path)
 							//wm8978_samplerate_set(samplerate);
 							ESP_LOGI(TAG,"mp3file info---bitrate=%d,layer=%d,nChans=%d,samprate=%d,outputSamps=%d",mp3FrameInfo.bitrate,mp3FrameInfo.layer,mp3FrameInfo.nChans,mp3FrameInfo.samprate,mp3FrameInfo.outputSamps);
 					}   
-					i2s_write_bytes(0,(const char*)output,mp3FrameInfo.outputSamps*2, 1000 / portTICK_RATE_MS);
+					//i2s_write_bytes(0,(const char*)output,mp3FrameInfo.outputSamps*2, 1000 / portTICK_RATE_MS);
+					size_t written = 0;
+					i2s_write(0,(const char*)output,mp3FrameInfo.outputSamps*2, &written, 1000 / portTICK_RATE_MS))
 				}
 			
 			}
@@ -309,7 +330,9 @@ void render_sample_block(short *short_sample_buff, int no_samples)
 		char buf[4];
 		memcpy(buf,&right,2);
 		memcpy(buf+2,&left,2);
-		i2s_write_bytes(0,buf, 4, 1000 / portTICK_RATE_MS);
+		//i2s_write_bytes(0,buf, 4, 1000 / portTICK_RATE_MS);
+		size_t written = 0;
+		i2s_write(0,buf, 4, &written, 1000 / portTICK_RATE_MS);
 	}
     return;
 }

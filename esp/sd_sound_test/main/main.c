@@ -57,20 +57,40 @@
 #define PIN_NUM_CS   13
 
 
+const static char letters[11] = {
+  'a',
+  'b',
+  'c',
+  'e',
+  'e',
+  'f',
+  'g',
+  'h',
+  'k',
+  'm',
+  'x'
+};
 
+
+static char* file_name = "/sdcard/audio/a4.raw";
 
 void test_task1(void* pvParameters) {
+  static uint8_t counter = 0;
     while(1) {
-      ESP_LOGI(TAG, "test_task1");
+      ESP_LOGI(TAG, "test_task1: %c %c", letters[counter], file_name[14]);
+      //file_name[14] = letters[counter++];
+      ESP_LOGI(TAG, "file %s", file_name);
+      aplay_raw(file_name);
+      if (counter >= 11) counter = 0;
       //esp_task_wdt_feed();
       vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 
 void test_task2(void* pvParameters) {
+    ESP_LOGI(TAG, "test_task2");
     while(1) {
-      ESP_LOGI(TAG, "test_task2");
-      aplay_wav("/sdcard/001K.wav");
+      //aplay_wav("/sdcard/001K.wav");
       //esp_light_sleep_start();
     }
 }
@@ -116,20 +136,64 @@ esp_err_t init_sdcard() {
 
   // Card has been initialized, print its properties
   sdmmc_card_print_info(stdout, card);
+  
+  return ESP_OK;
+}
 
-  // Use POSIX and C standard library functions to work with files.
-  // First create a file.
+
+void test_json() {
+  const int coordinate_numbers[6][2] = {
+        {1280, 720},
+        {1920, 1080},
+        {3840, 2160}, 
+        {1280, 720},
+        {-1, -1},
+        {-1, -1}
+    };
+
+
+  cJSON *monitor = cJSON_CreateObject();
+
+  cJSON *name = cJSON_CreateString("Team Scheire");
+  cJSON_AddItemToObject(monitor, "name", name);
+
+  cJSON *coordinates = cJSON_CreateArray();
+  cJSON_AddItemToObject(monitor, "coordinates", coordinates);
+
+  cJSON *x = NULL;
+  cJSON *y = NULL;
+  cJSON *coordinate = NULL;
+
+  for (int index = 0; index < (sizeof(coordinate_numbers) / (2 * sizeof(int))); ++index)
+  {
+      coordinate = cJSON_CreateObject();
+      if (coordinate == NULL) goto end;
+      cJSON_AddItemToArray(coordinates, coordinate);
+
+      x = cJSON_CreateNumber(coordinate_numbers[index][0]);
+      if (x == NULL) goto end;
+      cJSON_AddItemToObject(coordinate, "x", x);
+
+      y = cJSON_CreateNumber(coordinate_numbers[index][1]);
+      if (y == NULL) goto end;
+
+      cJSON_AddItemToObject(coordinate, "y", y);
+  }
+
+  char *string = cJSON_Print(monitor);
+
   ESP_LOGI(TAG, "Opening file");
-  FILE* f = fopen("/sdcard/hello.txt", "w");
+  FILE* f = fopen("/sdcard/config.cfg", "w");
   if (f == NULL) {
       ESP_LOGE(TAG, "Failed to open file for writing");
-      return ESP_FAIL;
+  } else {
+    fprintf(f, "%s\n", string);
+    fclose(f);
   }
-  fprintf(f, "Hello %s!\n", card->cid.name);
-  fclose(f);
-  ESP_LOGI(TAG, "File written");
+  ESP_LOGI(TAG, "File written with %s", string);
 
-  return ESP_OK;
+end:
+  cJSON_Delete(monitor);
 }
 
 void app_main()
@@ -149,7 +213,7 @@ void app_main()
     gpio_set_level(GPIO_OUTPUT_IO_0, 0);
     /*init codec */
     hal_i2c_init(0,19,18);
-    hal_i2s_init(0,48000,16,2);
+    hal_i2s_init(0,41000,16,2);
     WM8978_Init();
     WM8978_ADDA_Cfg(1,1); 
     WM8978_Input_Cfg(1,0,0);     
@@ -167,6 +231,7 @@ void app_main()
     WM8978_EQ5_Set(0,24);
 
     init_sdcard();
+    test_json();
 
 
 

@@ -39,11 +39,15 @@ void hal_i2s_init(uint8_t i2s_num,uint32_t rate,uint8_t bits,uint8_t ch)
 }
 int hal_i2s_read(uint8_t i2s_num,char* dest,size_t size,TickType_t timeout)
 {
-    return i2s_read_bytes(i2s_num,  dest, size, timeout);
+    size_t bytes_read = 0;
+    i2s_read(i2s_num, dest, size, &bytes_read, timeout);
+    return bytes_read;
 }
 int hal_i2s_write(uint8_t i2s_num,char* dest,size_t size,TickType_t timeout)
 {
-    return i2s_write_bytes(i2s_num,  dest, size, timeout);
+    size_t written = 0;
+	i2s_write(i2s_num, dest, size, &written, timeout);
+    return written;
 }
 
 
