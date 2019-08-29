@@ -88,6 +88,8 @@ esp_err_t load_config() {
   FILE* f = fopen(CONFIG_FILE, "r");
   if (f == NULL) {
       ESP_LOGE(TAG, "Failed to open file for writing");
+      create_default_config();
+      return save_config();
   } else {
     while(1){
       uint32_t r;
@@ -113,14 +115,14 @@ esp_err_t load_config() {
     const cJSON *wifi_ssid = cJSON_GetObjectItemCaseSensitive(json, "wifi_ssid");
     if (cJSON_IsString(wifi_ssid) && (wifi_ssid->valuestring != NULL))
     {
-        printf("wifi_ssid \"%s\"\n", wifi_ssid->valuestring);
+        ESP_LOGE(TAG, "wifi_ssid \"%s\"\n", wifi_ssid->valuestring);
         strcpy(app_config.wifi_ssid, wifi_ssid->valuestring);
     }
 
     const cJSON *wifi_passwd = cJSON_GetObjectItemCaseSensitive(json, "wifi_passwd");
     if (cJSON_IsString(wifi_passwd) && (wifi_passwd->valuestring != NULL))
     {
-        printf("wifi_passwd \"%s\"\n", wifi_passwd->valuestring);
+        ESP_LOGE(TAG, "wifi_passwd \"%s\"\n", wifi_passwd->valuestring);
         strcpy(app_config.wifi_passwd, wifi_passwd->valuestring);
     }
 
@@ -140,7 +142,7 @@ esp_err_t load_config() {
         app_config.node_positions[counter].x = x->valuedouble;
         app_config.node_positions[counter].y = y->valuedouble;
 
-        printf("node_position %d: %d, %d", counter,  app_config.node_positions[counter].x,  app_config.node_positions[counter].y);
+        ESP_LOGE(TAG, "node_position %d: %d, %d", counter,  app_config.node_positions[counter].x,  app_config.node_positions[counter].y);
         counter++;
     }
 
