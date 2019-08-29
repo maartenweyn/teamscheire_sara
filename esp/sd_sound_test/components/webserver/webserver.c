@@ -37,13 +37,13 @@ static int32_t socket_fd, client_fd;
 static char chunk_len[15];
 
 
-const static char not_find_page[] = "<!DOCTYPE html>"
+const static char not_found_page[] = "<!DOCTYPE html>"
       "<html>\n"
       "<head>\n"
       "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-      "	 <link href=\"https://cdn.bootcss.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css\" rel=\"stylesheet\">\n"
-      "  <script src=\"https://cdn.bootcss.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js\"></script>\n"
-      "<title>WhyEngineer-ESP32</title>\n"
+     // "	 <link href=\"https://cdn.bootcss.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css\" rel=\"stylesheet\">\n"
+     // "  <script src=\"https://cdn.bootcss.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js\"></script>\n"
+      "<title>Team Scheire</title>\n"
       "</head>\n"
       "<body>\n"
       "<h1 class=\"container\">Page not Found!</h1>\n"
@@ -88,27 +88,27 @@ typedef struct
 }HttpHandleTypeDef;
 
 void web_index(http_parser* a,char*url,char* body);
-void led_ctrl(http_parser* a,char*url,char* body);
-void load_logo(http_parser* a,char*url,char* body);
-void load_esp32(http_parser* a,char*url,char* body);
+// void led_ctrl(http_parser* a,char*url,char* body);
+// void load_logo(http_parser* a,char*url,char* body);
+// void load_esp32(http_parser* a,char*url,char* body);
 void rest_readdir(http_parser* a,char*url,char* body);
-void rest_readwav(http_parser* a,char*url,char* body);
+// void rest_readwav(http_parser* a,char*url,char* body);
 
-static void not_find();
+static void not_found();
 const HttpHandleTypeDef http_handle[]={
 	{"/",web_index},
-	{"/api/led/",led_ctrl},
-	{"/static/logo.png",load_logo},
-	{"/static/esp32.png",load_esp32},
+	//{"/api/led/",led_ctrl},
+	// {"/static/logo.png",load_logo},
+	// {"/static/esp32.png",load_esp32},
   {"/api/readdir/",rest_readdir},
-  {"/api/readwav/",rest_readwav},
+  // {"/api/readwav/",rest_readwav},
 };
 static void return_file(char* filename){
 	uint32_t r;
 	char* read_buf=malloc(1024);
   	FILE* f = fopen(filename, "r");
   	if(f==NULL){
-  		ESP_LOGE(TAG,"not find the file");
+  		ESP_LOGE(TAG,"cannot not find the file %s", filename);
   		return;
   	}
   	while(1){
@@ -125,37 +125,39 @@ static void return_file(char* filename){
     fclose(f);
   	chunk_end(client_fd);
 }
-static void not_find(){
+static void not_found(){
 	char *request;
   	asprintf(&request,RES_HEAD,"text/html");//html
   	write(client_fd, request, strlen(request));
   	free(request);
-  	sprintf(chunk_len,"%x\r\n",strlen(not_find_page));
+  	sprintf(chunk_len,"%x\r\n",strlen(not_found_page));
   	write(client_fd, chunk_len, strlen(chunk_len));
-  	write(client_fd, not_find_page, strlen(not_find_page));
+  	write(client_fd, not_found_page, strlen(not_found_page));
   	write(client_fd,"\r\n",2);
   	chunk_end(client_fd);
+
+		ESP_LOGE(TAG,"URL not found");
 }
-void load_logo(http_parser* a,char*url,char* body){
-	char *request;
-  	asprintf(&request,RES_HEAD,"image/png");//html
-  	write(client_fd, request, strlen(request));
-  	free(request);
-  	return_file("/sdcard/www/static/logo.png");
-}
-void load_esp32(http_parser* a,char*url,char* body){
-	char *request;
-  	asprintf(&request,RES_HEAD,"image/png");//html
-  	write(client_fd, request, strlen(request));
-  	free(request);
-  	return_file("/sdcard/www/static/esp32.png");
-}
+// void load_logo(http_parser* a,char*url,char* body){
+// 	char *request;
+//   	asprintf(&request,RES_HEAD,"image/png");//html
+//   	write(client_fd, request, strlen(request));
+//   	free(request);
+//   	return_file("/sdcard/www/static/logo.png");
+// }
+// void load_esp32(http_parser* a,char*url,char* body){
+// 	char *request;
+//   	asprintf(&request,RES_HEAD,"image/png");//html
+//   	write(client_fd, request, strlen(request));
+//   	free(request);
+//   	return_file("/sdcard/www/static/esp32.png");
+// }
 void web_index(http_parser* a,char*url,char* body){
 	char *request;
   	asprintf(&request,RES_HEAD,"text/html");//html
   	write(client_fd, request, strlen(request));
   	free(request);
-  	return_file("/sdcard/www/index.html");
+  	return_file("/sdcard/www/index.htm");
 }
 void rest_readdir(http_parser* a,char*url,char* body){
     char *request;
@@ -203,17 +205,17 @@ void rest_readdir(http_parser* a,char*url,char* body){
     printf("handle_return: %s\n", out);
     cJSON_Delete(root);
 }
-void rest_readwav(http_parser* a,char*url,char* body){
-    char *request;
-    asprintf(&request,RES_HEAD,"audio/x-wav");//json
-    write(client_fd, request, strlen(request));
-    free(request);
-    cJSON *root=NULL;
-    root= cJSON_Parse(http_body);
-    char* name=cJSON_GetObjectItem(root,"filename")->valuestring;
-    return_file(name);
-    cJSON_Delete(root);
-}
+// void rest_readwav(http_parser* a,char*url,char* body){
+//     char *request;
+//     asprintf(&request,RES_HEAD,"audio/x-wav");//json
+//     write(client_fd, request, strlen(request));
+//     free(request);
+//     cJSON *root=NULL;
+//     root= cJSON_Parse(http_body);
+//     char* name=cJSON_GetObjectItem(root,"filename")->valuestring;
+//     return_file(name);
+//     cJSON_Delete(root);
+// }
 void led_ctrl(http_parser* a,char*url,char* body){
 	char *request;
   	asprintf(&request,RES_HEAD,"application/json");//json
@@ -253,18 +255,26 @@ static int body_done_callback (http_parser* a){
 	http_body=realloc(http_body,http_body_length+1);
     http_body[http_body_length]='\0';
   	ESP_LOGI(TAG,"body:%s",http_body);
-  	for(int i=0;i<sizeof(http_handle)/sizeof(http_handle[0]);i++){
-  		if(strcmp(http_handle[i].url,http_url)==0){
+  	for(int i=1;i<sizeof(http_handle)/sizeof(http_handle[0]);i++){
+			size_t pattern_length = strlen(http_handle[i].url);
+			ESP_LOGI(TAG,"compare %s with %d letters of %s ",http_url, pattern_length, http_handle[i].url);
+  		if(strncmp(http_handle[i].url,http_url,pattern_length)==0){
   			http_handle[i].handle(a,http_url,http_body);
   			return 0;
   		}
   	}
-  	not_find();
+
+		if(strcmp(http_handle[0].url,http_url)==0){
+			http_handle[0].handle(a,http_url,http_body);
+			return 0;
+		}
+
+  	not_found();
   	// char *request;
   	// asprintf(&request,RES_HEAD,HTML);
   	// write(client_fd, request, strlen(request));
    //  free(request);
-   //  sprintf(chunk_len,"%x\r\n",strlen(not_find_page));
+   //  sprintf(chunk_len,"%x\r\n",strlen(not_found_page));
    //  //ESP_LOGI(TAG,"chunk_len:%s,length:%d",chunk_len,strlen(http_index_hml));
    //  write(client_fd, chunk_len, strlen(chunk_len));
    //  write(client_fd, http_index_hml, strlen(http_index_hml));
@@ -343,9 +353,9 @@ void webserver_task( void *pvParameters ){
 
 	(void) pvParameters;
 	http_parser parser;
-    http_parser_init(&parser, HTTP_REQUEST);
-    parser.data = NULL;
-    socklen_t client_size=sizeof(client);
+	http_parser_init(&parser, HTTP_REQUEST);
+	parser.data = NULL;
+	socklen_t client_size=sizeof(client);
 
 	socket_fd = creat_socket_server(htons(80),htonl(INADDR_ANY));
 	if( socket_fd >= 0 ){
@@ -374,7 +384,7 @@ void webserver_task( void *pvParameters ){
 					
 					//while(xReturned!=pdFALSE);
 					//lwip_send( lClientFd,path,strlen(path), 0 );
-				}while(lBytes > 0 && nparsed >= 0);
+				} while(lBytes > 0 && nparsed >= 0);
 				free(http_url);
 				free(http_body);
 				http_url=NULL;

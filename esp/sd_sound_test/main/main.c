@@ -33,7 +33,7 @@
 #include "websocket.h"
 #include "esp_heap_caps.h"
 #include "aplay.h"
-
+#include "esp_task_wdt.h"
 
 //#include "web_radio.h"
 
@@ -57,11 +57,10 @@
 #define PIN_NUM_CS   13
 
 
-const static char letters[11] = {
+const static char letters[10] = {
   'a',
   'b',
   'c',
-  'e',
   'e',
   'f',
   'g',
@@ -72,26 +71,25 @@ const static char letters[11] = {
 };
 
 
-static char* file_name = "/sdcard/audio/a4.raw";
+void play_letter(char l) {
+  char file_name[50];
+  sprintf(file_name, "/sdcard/audio/%c.raw", l);
+  ESP_LOGI(TAG, "file %s", file_name);
+  aplay_raw(file_name);
+}
 
 void test_task1(void* pvParameters) {
   static uint8_t counter = 0;
+  
     while(1) {
-      ESP_LOGI(TAG, "test_task1: %c %c", letters[counter], file_name[14]);
-      //file_name[14] = letters[counter++];
-      ESP_LOGI(TAG, "file %s", file_name);
-      aplay_raw(file_name);
-      if (counter >= 11) counter = 0;
-      //esp_task_wdt_feed();
-      vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-}
+      if (counter < 10) {
+        ESP_LOGI(TAG, "test_task1: %c", letters[counter]);
+        play_letter(letters[counter]);
+        counter++;
+      }
 
-void test_task2(void* pvParameters) {
-    ESP_LOGI(TAG, "test_task2");
-    while(1) {
-      //aplay_wav("/sdcard/001K.wav");
-      //esp_light_sleep_start();
+      esp_task_wdt_reset();
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 
@@ -136,7 +134,7 @@ esp_err_t init_sdcard() {
 
   // Card has been initialized, print its properties
   sdmmc_card_print_info(stdout, card);
-  
+
   return ESP_OK;
 }
 
@@ -234,6 +232,9 @@ void app_main()
     test_json();
 
 
+  tcpip_adapter_ip_info_t ip;
+  tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip);    
+  ESP_LOGI(TAG, "SoftAP IP=%s", inet_ntoa(ip.ip.addr));
 
     // xEventGroupWaitBits(station_event_group,STA_GOTIP_BIT,pdTRUE,pdTRUE,portMAX_DELAY);
     // //print ip address
@@ -253,7 +254,7 @@ void app_main()
    
    
     xTaskCreate(test_task1, "test_task1", 4096, NULL, 5, NULL);
-    xTaskCreate(test_task2, "test_task2", 4096, NULL, 5, NULL);
+    xTaskCreate(webserver_task, "webserver_task", 4096, NULL, 5, NULL);
     vTaskSuspend(NULL);
 
     //never goto here
