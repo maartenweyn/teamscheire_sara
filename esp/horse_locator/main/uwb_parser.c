@@ -57,6 +57,7 @@ static bool setRange(int id, int range)
   {
     if ( i == id - 1) {
       meas_counter[i] = 0;
+      receiving_ranges = true;
     } else {
       if (meas_counter[i] < 100)
         meas_counter[i]++;
@@ -73,7 +74,7 @@ static bool setRange(int id, int range)
 }
 
 
- int uwb_parser_check_data() {
+ bool uwb_parser_check_data() {
   static int counter = 0;
   bool got_position = false;
   
@@ -97,7 +98,7 @@ static bool setRange(int id, int range)
     char delim[] = ",";
 
 
-    ESP_LOGI(TAG, "LINE: (%d) %s", strlen(data), data);
+    //ESP_LOGI(TAG, "LINE: (%d) %s", strlen(data), data);
 
     //range
     ptr=strtok(data,delim);
@@ -130,13 +131,4 @@ static bool setRange(int id, int range)
   }
 
   return got_position;
- }
-
- void locator_task( void *pvParameters ){
-   	(void) pvParameters;
-
-     while(1) {
-       uwb_parser_check_data();
-     }
-
  }

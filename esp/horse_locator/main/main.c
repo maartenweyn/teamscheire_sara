@@ -36,9 +36,9 @@
 #include "app_sound.h"
 #include "app_config.h"
 #include "app_sdcard.h"
+#include "localization.h"
 #include "uwb_parser.h"
-
-#include "led_strip.h"
+#include "app_leds.h"
 
 
 //#include "web_radio.h"
@@ -53,28 +53,6 @@
 
 #define GPIO_OUTPUT_IO_0    5
 #define GPIO_OUTPUT_PIN_SEL  ((1<<GPIO_OUTPUT_IO_0))
-
-#define LED_STRIP_LENGTH  23
-
-
-const static char letters[10] = {
-  'a',
-  'b',
-  'c',
-  'e',
-  'f',
-  'g',
-  'h',
-  'k',
-  'm',
-  'x'
-};
-
-int meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
-int meas_counter[6] = {100,100,100,100,100,100};
-
-
-
 
 
 void app_main()
@@ -98,7 +76,7 @@ void app_main()
   WM8978_ADDA_Cfg(1,1); 
   WM8978_Input_Cfg(1,0,0);     
   WM8978_Output_Cfg(1,0); 
-    WM8978_MIC_Gain(0);
+  WM8978_MIC_Gain(0);
   WM8978_AUX_Gain(0);
   WM8978_LINEIN_Gain(0);
   WM8978_SPKvol_Set(35);
@@ -121,35 +99,14 @@ void app_main()
   tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip);    
   ESP_LOGI(TAG, "SoftAP IP=%s", inet_ntoa(ip.ip.addr));
 
-
+  //leds_init();
   uwb_parser_init();   
 
-  // static struct led_color_t led_strip_buf_1[LED_STRIP_LENGTH];
-  // static struct led_color_t led_strip_buf_2[LED_STRIP_LENGTH];
 
-  // struct led_strip_t led_strip = {
-  //     .rgb_led_type = RGB_LED_TYPE_WS2812,
-  //     .rmt_channel = RMT_CHANNEL_1,
-  //     .rmt_interrupt_num = 18,
-  //     .gpio = GPIO_NUM_22,
-  //     .led_strip_buf_1 = led_strip_buf_1,
-  //     .led_strip_buf_2 = led_strip_buf_2,
-  //     .led_strip_length = LED_STRIP_LENGTH
-  // };
-  // led_strip.access_semaphore = xSemaphoreCreateBinary();
-
-  // bool led_init_ok = led_strip_init(&led_strip);
-  
-  // ESP_LOGI(TAG, "led_strip_init %d", led_init_ok);
-
-  // led_strip_set_pixel_rgb(&led_strip, 1, 255, 0, 0);
-  // led_strip_set_pixel_rgb(&led_strip, 2, 0, 255, 0);
-  // led_strip_set_pixel_rgb(&led_strip, 3, 0, 0, 255);
-
-  // led_strip_show(&led_strip);
-
-  xTaskCreate(locator_task, "locator_task", 4096, NULL, 5, NULL);
-  xTaskCreate(webserver_task, "webserver_task", 4096, NULL, 5, NULL);
+  //xTaskCreate(locator_task, "locator_task", 4096, NULL, 5, NULL);
+  xTaskCreatePinnedToCore(locator_task, "locator_task", 4096, NULL, 5, NULL, 1);
+  //xTaskCreate(webserver_task, "webserver_task", 4096, NULL, 10, NULL);
+  xTaskCreatePinnedToCore(webserver_task, "webserver_task", 4096, NULL, 10, NULL, 0);
   vTaskSuspend(NULL);
 
   //never goto here

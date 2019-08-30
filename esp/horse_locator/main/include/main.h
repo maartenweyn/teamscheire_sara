@@ -3,6 +3,8 @@
 
 #define USE_MEASUREMENT_THRESHOLD 24 //4 * 6 (can miss 3 cycles)
 
+#define ALLOW_DELAY   5
+
 #define FIELD_SIZE_X      2200
 #define FIELD_SIZE_Y      490
 #define FIELD_SIZE_MARGIN 200

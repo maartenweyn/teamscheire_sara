@@ -40,6 +40,8 @@ static int32_t socket_fd, client_fd;
 #define RES_HEAD "HTTP/1.1 200 OK\r\nContent-type: %s\r\nTransfer-Encoding: chunked\r\n\r\n"
 static char chunk_len[15];
 
+static char read_buf[1024];
+
 
 const static char not_found_page[] = "<!DOCTYPE html>"
       "<html>\n"
@@ -93,13 +95,12 @@ const HttpHandleTypeDef http_handle[]={
 
 static void print_header( int refresh) {
   // Display the HTML web page
-	char* read_buf=malloc(1024);
 	memset(read_buf, 0, 1024);
 
 	strcpy(read_buf, "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
 
 	if (refresh > 0) {
-		char* temp = malloc(10);
+		char temp[10];
 		sprintf(temp, "%d", refresh);
   	strcat(read_buf, "<meta http-equiv=\"refresh\" content=\"");
 		strcat(read_buf, temp);
@@ -125,15 +126,13 @@ static void print_header( int refresh) {
 }
 
 void print_main_content() {
-	char* read_buf=malloc(1024);
 		memset(read_buf, 0, 1024);
-		char* temp=malloc(100);
+		char temp[100];
 		
 		strcpy(read_buf, "<h2>Measuruments</h2>");
 
 		strcat(read_buf, "<ul>");
 		for (int i = 0; i < 6; i++) {
-			char* temp=malloc(100);
 			if (meas_counter[i] < USE_MEASUREMENT_THRESHOLD)
 				sprintf(temp, "<li class=\"green\">Anchor %d (%d, %d): %d cm</li>", i+1, app_config.node_positions[i].x, app_config.node_positions[i].y, meas_ranges[i]);
 			else
@@ -169,7 +168,6 @@ void print_main_content() {
 
 static void return_file(char* filename){
 	uint32_t r;
-	char* read_buf=malloc(1024);
   	FILE* f = fopen(filename, "r");
   	if(f==NULL){
   		ESP_LOGE(TAG,"cannot not find the file %s", filename);
@@ -228,8 +226,7 @@ void calib(http_parser* a, char* url, char* body) {
 	write(client_fd, request, strlen(request));
 	free(request);
 
-	char* read_buf=malloc(500);
-	memset(read_buf, 0, 500);
+	memset(read_buf, 0, 1024);
 
 	strcpy(read_buf, "<a href=\"/\">Home</a>");
 
@@ -255,7 +252,7 @@ void calib(http_parser* a, char* url, char* body) {
 				if (anchor_id <= 6 && anchor_id > 0) {
 					app_config.node_positions[anchor_id - 1].x = x_coord;
 					app_config.node_positions[anchor_id - 1].y = y_coord;
-					char* temp=malloc(100);
+					char temp[50];
 					sprintf(temp, "<p class=\"green\">Anchor %d adapted</p>", anchor_id);
 					strcat(read_buf, temp);
 					save_config();
@@ -411,6 +408,7 @@ void webserver_task( void *pvParameters ){
 					//while(xReturned!=pdFALSE);
 					//lwip_send( lClientFd,path,strlen(path), 0 );
 				} while(lBytes > 0 && nparsed >= 0);
+				
 				free(http_url);
 				free(http_body);
 				http_url=NULL;

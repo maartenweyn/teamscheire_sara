@@ -2,10 +2,9 @@
 #define UWB_PARSER_H
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 void uwb_parser_init();
-int uwb_parser_check_data();
-
-void locator_task( void *pvParameters );
+bool uwb_parser_check_data();
 
 #endif

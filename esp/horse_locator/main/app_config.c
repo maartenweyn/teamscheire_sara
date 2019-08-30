@@ -34,6 +34,9 @@ esp_err_t save_config() {
   if (wifi_passwd == NULL) goto end;
   cJSON_AddItemToObject(config, "wifi_passwd", wifi_passwd);
 
+  cJSON *nearby_threshold = cJSON_CreateNumber(app_config.nearby_threshold);
+  if (nearby_threshold == NULL) goto end;
+  cJSON_AddItemToObject(config, "nearby_threshold", nearby_threshold);
 
   cJSON *node_positions = cJSON_CreateArray();
   if (node_positions == NULL) goto end;
@@ -84,6 +87,7 @@ end:
 esp_err_t load_config() {
   ESP_LOGI(TAG, "Opening file %s", CONFIG_FILE);
 	char* read_buf=malloc(1024);
+  memset(read_buf, 0, 1024);
 
   FILE* f = fopen(CONFIG_FILE, "r");
   if (f == NULL) {
@@ -156,14 +160,17 @@ esp_err_t load_config() {
     }
 
     fclose(f);
+    free(read_buf);
+    cJSON_Delete(json);
 
     return ESP_OK;
-    cJSON_Delete(json);
 
 end:
     cJSON_Delete(json);
+    free(read_buf);
     return ESP_FAIL;
   }
   
+  free(read_buf);
   return ESP_FAIL;
 }

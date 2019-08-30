@@ -1,8 +1,13 @@
 #include "localization.h"
 #include "main.h"
 #include "app_config.h"
+#include "uwb_parser.h"
+#include "app_sound.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "esp_log.h"
+#include "app_leds.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -24,6 +29,11 @@ letter_position_t letters[NR_OF_LETTERS] = {
   {'X', 1000, 2000}, 
   {'G', 1000, 3400}
 };
+
+int meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
+int meas_counter[6] = {100,100,100,100,100,100};
+
+bool receiving_ranges = false;
 
 
 // calibration_ranges_t calibration_data[] = {
@@ -55,7 +65,7 @@ static bool intersectTwoCircles(position_t p1, int r1, position_t p2, int r2, po
   int centerdy = p1.y - p2.y;
   
   int R = sqrt(centerdx * centerdx + centerdy * centerdy);
-  ESP_LOGI(TAG, "r, r, R %d, %d, %d\n", r1, r2, R);
+  //ESP_LOGI(TAG, "r, r, R %d, %d, %d\n", r1, r2, R);
 
   if ((! ((abs(r1 - r2) <= R)  && (R <= r1 + r2))) || (R == 0))  {// no intersection
     return false;
@@ -80,7 +90,7 @@ static bool intersectTwoCircles(position_t p1, int r1, position_t p2, int r2, po
   i1->y = fy + gy;
   i2->y = fy - gy;
 
-  ESP_LOGI(TAG, "a, c, fx, gx, fy, gy: %f, %d, %d, %d, %d, %d\n", a, c, fx, gx, fy, gy);
+  //ESP_LOGI(TAG, "a, c, fx, gx, fy, gy: %f, %d, %d, %d, %d, %d\n", a, c, fx, gx, fy, gy);
 
 //  # note if gy == 0 and gx == 0 then the circles are tangent and there is only one solution
 //  # but that one solution will just be duplicated as the code is currently written
@@ -122,11 +132,11 @@ bool processMeasurement() {
     if (meas_counter[i] < USE_MEASUREMENT_THRESHOLD) {
       for (int j = i + 1; j < 6; j++) {
         if (meas_counter[j] < USE_MEASUREMENT_THRESHOLD) {
-          ESP_LOGI(TAG, "find intersection %d, %d:", i, j);
+          //ESP_LOGI(TAG, "find intersection %d, %d:", i, j);
           position_t i1;
           position_t i2;
           if (intersectTwoCircles(app_config.node_positions[i], meas_ranges[i], app_config.node_positions[j], meas_ranges[j], &i1, &i2)) {
-            ESP_LOGI(TAG, "-> (%d, %d), (%d, %d)", i1.x, i1.y, i2.x, i2.y);
+            //ESP_LOGI(TAG, "-> (%d, %d), (%d, %d)", i1.x, i1.y, i2.x, i2.y);
             bool good_intersection = false;
             if (i1.x >= -FIELD_SIZE_MARGIN && i1.x <= FIELD_SIZE_X + FIELD_SIZE_MARGIN
               && i1.y >= -FIELD_SIZE_MARGIN && i1.y <= FIELD_SIZE_Y + FIELD_SIZE_MARGIN) {
@@ -157,7 +167,7 @@ bool processMeasurement() {
               intersection_pointer++;
             }
           } else {
-            ESP_LOGI(TAG, "none");
+            //ESP_LOGI(TAG, "none");
           }
         }
       }
@@ -167,7 +177,7 @@ bool processMeasurement() {
 
   if (nr_of_intersections == 0) {
     // no intersections
-    last_position_counter++;
+    //last_position_counter++;
     return false;
   }
   
@@ -223,7 +233,49 @@ bool processMeasurement() {
   return true;
 }
 
+void watch_position( void *pvParameters ){
+  while(1) {
+    if (receiving_ranges) {
+      if ((last_position_counter < ALLOW_DELAY)) {
+        if ((nearby_letter > -1)) {
+          play_letter(letters[nearby_letter].letter);
+          ESP_LOGI(TAG, "letter");
+          //leds_setcolor(4, 100, 100, 100);
+        } else {
+          ESP_LOGI(TAG, "position, no letter");
+          //leds_setcolor(4, 0, 100, 0);
+        }
+      } else {
+        ESP_LOGI(TAG, "ranges, no position");
+        //leds_setcolor(4, 0, 100, 100);
+      }
 
-void setCalibration(char letter) {
-  
+      receiving_ranges = false;
+    } else {
+      ESP_LOGI(TAG, "No Ranges");
+      //leds_setcolor(4, 100, 0, 0);
+    }
+    
+    last_position_counter++;
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
 }
+
+void locator_task( void *pvParameters ){
+  (void) pvParameters;
+
+    
+  xTaskCreatePinnedToCore(watch_position, "watch_position", 4096, NULL, 20, NULL, 1);
+
+  while(1) {
+    //bool got_position = 
+    uwb_parser_check_data();
+    // if (got_position) {
+    //   if (nearby_letter > -1) {
+    //     play_letter(letters[nearby_letter].letter);
+    //   }
+    // }
+  }
+
+ }
