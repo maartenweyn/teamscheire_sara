@@ -127,9 +127,15 @@ void show_page(WiFiClient client) {
             else
               client.println("<li class=\"red\">Anchor " + String(i+1) + "(" + String(node_positions[i].x) + ", " + String(node_positions[i].y) +") </li>");
           }
-
-          client.println("<p>Position: (" + String(current_position.x) + ", " + String(current_position.y) +") Delay: " + String(last_position_counter) + "</p>");
           client.println("</ul>");
+          
+          client.println("<p>Position: (" + String(current_position.x) + ", " + String(current_position.y) +") Delay: " + String(last_position_counter) + "</p>");
+
+          if (nearby_letter ==  -1) 
+             client.println("<p>Letter:  None</p>");
+          else
+             client.println("<p>Letter:  " + String(letters[nearby_letter].letter) + "</p>");
+          
 
           
 

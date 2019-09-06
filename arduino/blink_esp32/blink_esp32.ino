@@ -29,6 +29,13 @@ void setup() {
 // the loop function runs over and over again forever
 void loop() {
 
+   static int led_mode = 1;
+   static int counter = 0;
+
+   digitalWrite(LED, led_mode);
+   
+   led_mode = !led_mode;
+
 
   // Auto Handling
   //cmdCallback.loopCmdProcessing(&myParser, &myBuffer, &Serial2);
@@ -40,6 +47,7 @@ void loop() {
 
 
             if (cmdParser.getParamCount() > 1 ) {
+              counter = 0;
 
               setRange(atoi(cmdParser.getCommand()), atoi(cmdParser.getCmdParam(2)));
 
@@ -57,11 +65,19 @@ void loop() {
 //                Serial.print(": ");
 //                Serial.println(cmdParser.getCmdParam(i));
 //            }
-            } 
+            } else {
+              counter++;
+
+              if (counter > 100) {
+                Serial.println(cmdParser.getCommand());
+              }
+            }
         } else {
             Serial.println("Parser error!");
         }
   }
+
+  
 
 }
 

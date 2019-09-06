@@ -4,31 +4,22 @@
 
 
 
-typedef struct {
-  char letter;
-  int ranges[6];
-  int count;
-} calibration_ranges_t;
-
-typedef struct {
-  char letter;
-  int x;
-  int y;
-} letter_position_t;
 
 
-letter_position_t letters[] = {
-  {'A', 10, 0},
-  {'K', 0, 6},
-  {'E', 0, 20}, 
-  {'H', 0, 34}, 
-  {'C', 10, 40}, 
-  {'M', 20, 34}, 
-  {'B', 20, 20}, 
-  {'F', 20, 6}, 
-  {'D', 10, 6}, 
-  {'X', 10, 20}, 
-  {'G', 10, 34}
+const int nr_of_letters = 11;
+
+letter_position_t letters[nr_of_letters] = {
+  {'A', 1000, 0},
+  {'K', 0, 600},
+  {'E', 0, 2000}, 
+  {'H', 0, 3400}, 
+  {'C', 1000, 4000}, 
+  {'M', 2000, 3400}, 
+  {'B', 2000, 2000}, 
+  {'F', 2000, 600}, 
+  {'D', 1000, 600}, 
+  {'X', 1000, 2000}, 
+  {'G', 1000, 3400}
 };
 
 
@@ -53,6 +44,8 @@ position_t current_position;
 
 int connected_anchors = 0;
 int last_position_counter = 0;
+
+int nearby_letter = -1;
 
 
 bool intersectTwoCircles(position_t p1, int r1, position_t p2, int r2, position_t* i1, position_t* i2) {
@@ -216,6 +209,17 @@ bool processMeasurement() {
   current_position.y = sum_intersection.y / intersection_pointer;
 
   last_position_counter = 0;
+
+  nearby_letter = -1;
+  for (int i = 0; i < nr_of_letters; i++) {
+    int d = pow(letters[i].x - current_position.x, 2) + pow(letters[i].y - current_position.y, 2);
+    if (d < NEARBY_THRESHOLD) {
+      nearby_letter = i;
+      break;
+    }
+  }
+
+  
   return true;
 }
 

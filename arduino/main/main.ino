@@ -5,10 +5,13 @@
 #include "webserver.h"
 
 
+#ifdef SIMULATION
+#include "simulation.h"
+#endif
+
+
 #include <EEPROM.h>
 #include <WiFi.h>
-
-
 
 
 int ranges[6] = {-1,-1,-1,-1,-1,-1};
@@ -63,20 +66,6 @@ void setup() {
 
   uwb_parser_init();
 
-  
-  //pinMode(BUTTON, INPUT);    // declare pushbutton as input
-
-//  byte value = EEPROM.read(0);
-//  Serial.print("eeprom 0:");
-//  Serial.print(value, DEC);
-//  Serial.println();
-//
-//  value++;
-//  EEPROM.write(0, value);
-
-  // CHECK if calibrated, if so go to localization, else ENTRY_STATE
-  //Serial.println("Not Calibrated");
-
   if (!EEPROM.begin(EEPROM_SIZE))
   {
     Serial.println("failed to initialise EEPROM");
@@ -87,14 +76,14 @@ void setup() {
   webserver_setup();
 }
 
-void give_command_calibration(calibration_state_codes cal_state) {
-  switch (cal_state)
-    {
-      case go_to_m:
-        Serial.println("goto_m");
-        break;
-    }
-}
+//void give_command_calibration(calibration_state_codes cal_state) {
+//  switch (cal_state)
+//    {
+//      case go_to_m:
+//        Serial.println("goto_m");
+//        break;
+//    }
+//}
 
 
 
@@ -124,15 +113,65 @@ void loop() {
 //        break;
 //    }
 //  }
+
+  int prev_letter = nearby_letter;
   
-//  bool new_position = uwb_parser_check_data();
-//
-//  if (new_position) {
-//    Serial.print("New Position: ");
-//    Serial.print(current_position.x);
-//    Serial.print(", ");
-//    Serial.println(current_position.y);
-//  }
+//  
+
+#ifdef SIMULATION
+  static position_t pos = {path[0].x*100, path[0].y*100};
+  static int pos_index = 1;
+
+  delay(1000);
+
+  double d = sqrt(pow(path[pos_index].x*100 - pos.x, 2) + pow(path[pos_index].y*100 - pos.y, 2));
+
+  //Serial.print("pos_index " + String(pos_index)  + ": " + String(path[pos_index].x) + ", " + String(path[pos_index].y));
+  //Serial.print(" -> " + String(pos.x) + ", " + String(pos.y));
+  //Serial.println(" -> " + String(d) + "(" + String(SIMULATION_STEP_SIZE) + ")");
+  
+  if (d < SIMULATION_STEP_SIZE) {
+    pos.x = path[pos_index].x*100;
+    pos.y = path[pos_index].y*100;
+    pos_index++;
+
+    if (pos_index >= 27) pos_index = 0;
+  } else {
+    int step = d / SIMULATION_STEP_SIZE;
+    pos.x += (path[pos_index].x*100 - pos.x) / step;
+    pos.y += (path[pos_index].y*100 - pos.y) / step;
+  }
+
+  current_position.x = pos.x;
+  current_position.y = pos.y;
+  bool new_position = true;
+
+  nearby_letter = -1;
+  for (int i = 0; i < 11; i++) {
+    int d = pow(letters[i].x - current_position.x, 2) + pow(letters[i].y - current_position.y, 2);
+    //Serial.println("  " + String(letters[i].letter) + ": " + String(d));
+    if (d < NEARBY_THRESHOLD) {
+      nearby_letter = i;
+      break;
+    }
+  }
+ 
+#elif
+  bool new_position = uwb_parser_check_data();
+#endif
+
+  if (new_position) {
+    Serial.println("New Position: " + String(current_position.x) + ", " + String(current_position.y));
+
+    //if (prev_letter != nearby_letter) {
+    if (nearby_letter != -1) {
+      Serial.print("Nearby Position: ");
+      //if (nearby_letter ==  -1) 
+      //  Serial.println("None");
+      //else
+        Serial.println(letters[nearby_letter].letter);
+    }
+  }
 
   webserver_check_for_client();
 
