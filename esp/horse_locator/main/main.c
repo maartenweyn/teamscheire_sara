@@ -40,6 +40,8 @@
 #include "uwb_parser.h"
 #include "app_leds.h"
 
+#include <esp_http_server.h>
+
 
 //#include "web_radio.h"
 
@@ -51,24 +53,24 @@
 
 //char* http_body;
 
-#define GPIO_OUTPUT_IO_0    5
-#define GPIO_OUTPUT_PIN_SEL  ((1<<GPIO_OUTPUT_IO_0))
+//#define GPIO_OUTPUT_IO_0    5
+//#define GPIO_OUTPUT_PIN_SEL  ((1<<GPIO_OUTPUT_IO_0))
 
 
 void app_main()
 {
-  event_engine_init();
+  //event_engine_init();
   nvs_flash_init();
 
   /*init gpio*/
-  gpio_config_t io_conf;
-  io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
-  io_conf.mode = GPIO_MODE_OUTPUT;
-  io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
-  io_conf.pull_down_en = 0;
-  io_conf.pull_up_en = 0;
-  gpio_config(&io_conf);
-  gpio_set_level(GPIO_OUTPUT_IO_0, 0);
+  // gpio_config_t io_conf;
+  // io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+  // io_conf.mode = GPIO_MODE_OUTPUT;
+  // io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
+  // io_conf.pull_down_en = 0;
+  // io_conf.pull_up_en = 0;
+  // gpio_config(&io_conf);
+  // gpio_set_level(GPIO_OUTPUT_IO_0, 0);
   /*init codec */
   hal_i2c_init(0,19,18);
   hal_i2s_init(0,41000,16,2);
@@ -80,7 +82,7 @@ void app_main()
   WM8978_AUX_Gain(0);
   WM8978_LINEIN_Gain(0);
   WM8978_SPKvol_Set(35);
-  WM8978_HPvol_Set(35,35); //0-63
+  WM8978_HPvol_Set(50,50); //0-63
   WM8978_EQ_3D_Dir(0);
   WM8978_EQ1_Set(0,24);
   WM8978_EQ2_Set(0,24);
@@ -91,22 +93,17 @@ void app_main()
   init_sdcard();
   load_config();
 
-  // Access point
-  tcpip_adapter_init();
-  wifi_init_softap(app_config.wifi_ssid,app_config.wifi_passwd);    
-
-  tcpip_adapter_ip_info_t ip;
-  tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip);    
-  ESP_LOGI(TAG, "SoftAP IP=%s", inet_ntoa(ip.ip.addr));
+  static httpd_handle_t server = NULL;
+  initialise_wifi(&server);
 
   //leds_init();
   uwb_parser_init();   
 
 
-  //xTaskCreate(locator_task, "locator_task", 4096, NULL, 5, NULL);
-  xTaskCreatePinnedToCore(locator_task, "locator_task", 4096, NULL, 5, NULL, 1);
+  xTaskCreate(locator_task, "locator_task", 4096, NULL, 5, NULL);
+  //xTaskCreatePinnedToCore(locator_task, "locator_task", 4096, NULL, 5, NULL, 1);
   //xTaskCreate(webserver_task, "webserver_task", 4096, NULL, 10, NULL);
-  xTaskCreatePinnedToCore(webserver_task, "webserver_task", 4096, NULL, 10, NULL, 0);
+  //xTaskCreatePinnedToCore(webserver_task, "webserver_task", 4096, NULL, 10, NULL, 0);
   vTaskSuspend(NULL);
 
   //never goto here

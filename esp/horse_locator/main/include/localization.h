@@ -6,6 +6,7 @@
 
 #include <stdbool.h>
 
+//#define NR_OF_LETTERS 11
 #define NR_OF_LETTERS 11
 
 typedef struct {

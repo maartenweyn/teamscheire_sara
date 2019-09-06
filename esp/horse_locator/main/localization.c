@@ -16,8 +16,8 @@
 #define TAG "LOCALIZ: "
 
 letter_position_t letters[NR_OF_LETTERS] = {
-  {'A', 100, 0},
-  //{'A', 1000, 0},
+  //{'A', 100, 0},
+  {'A', 1000, 0},
   {'K', 0, 600},
   {'E', 0, 2000}, 
   {'H', 0, 3400}, 
@@ -29,6 +29,21 @@ letter_position_t letters[NR_OF_LETTERS] = {
   {'X', 1000, 2000}, 
   {'G', 1000, 3400}
 };
+
+// letter_position_t letters[NR_OF_LETTERS] = {
+//   //{'A', 100, 0},
+//   {'A', 1000, 0},
+//   {'K', 0, 600},
+//   {'E', 0, 3000}, 
+//   {'H', 0, 5400}, 
+//   {'C', 1000, 6000}, 
+//   {'M', 2000, 5400}, 
+//   {'B', 2000, 4000}, 
+//   {'F', 2000, 600}, 
+//   {'D', 1000, 600}, 
+//   {'X', 1000, 3000}, 
+//   {'G', 1000, 5400}
+// };
 
 int meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
 int meas_counter[6] = {100,100,100,100,100,100};
@@ -65,7 +80,7 @@ static bool intersectTwoCircles(position_t p1, int r1, position_t p2, int r2, po
   int centerdy = p1.y - p2.y;
   
   int R = sqrt(centerdx * centerdx + centerdy * centerdy);
-  //ESP_LOGI(TAG, "r, r, R %d, %d, %d\n", r1, r2, R);
+  ESP_LOGI(TAG, "r, r, R %d, %d, %d\n", r1, r2, R);
 
   if ((! ((abs(r1 - r2) <= R)  && (R <= r1 + r2))) || (R == 0))  {// no intersection
     return false;
@@ -78,19 +93,19 @@ static bool intersectTwoCircles(position_t p1, int r1, position_t p2, int r2, po
   int R4 = R2*R2;
   float  a = (r1*r1 - r2*r2) / (2 * R2);
   int r2r2 = (r1*r1 - r2*r2);
-  int c = sqrt(2 * (r1*r1 + r2*r2) / R2 - (r2r2 * r2r2) / R4 - 1);
+  float c = sqrt(2 * (r1*r1 + r2*r2) / R2 - (r2r2 * r2r2) / R4 - 1);
 
-  int fx = (p1.x + p2.x) / 2 + a * (p2.x - p1.x);
-  int gx = c * (p2.y - p1.y) / 2;
-  i1->x = fx + gx;
-  i2->x = fx - gx;
+  float fx = (p1.x + p2.x) / 2 + a * (p2.x - p1.x);
+  float gx = c * (p2.y - p1.y) / 2;
+  i1->x = (int) (fx + gx);
+  i2->x = (int) (fx - gx);
 
-  int fy = (p1.y+p2.y) / 2 + a * (p2.y - p1.y);
-  int gy = c * (p1.x - p2.x) / 2;
-  i1->y = fy + gy;
-  i2->y = fy - gy;
+  float fy = (p1.y+p2.y) / 2 + a * (p2.y - p1.y);
+  float gy = c * (p1.x - p2.x) / 2;
+  i1->y = (int) (fy + gy);
+  i2->y = (int) (fy - gy);
 
-  //ESP_LOGI(TAG, "a, c, fx, gx, fy, gy: %f, %d, %d, %d, %d, %d\n", a, c, fx, gx, fy, gy);
+  ESP_LOGI(TAG, "a, c, fx, gx, fy, gy: %f, %f, %f, %f, %f, %f\n", a, c, fx, gx, fy, gy);
 
 //  # note if gy == 0 and gx == 0 then the circles are tangent and there is only one solution
 //  # but that one solution will just be duplicated as the code is currently written
@@ -132,11 +147,11 @@ bool processMeasurement() {
     if (meas_counter[i] < USE_MEASUREMENT_THRESHOLD) {
       for (int j = i + 1; j < 6; j++) {
         if (meas_counter[j] < USE_MEASUREMENT_THRESHOLD) {
-          //ESP_LOGI(TAG, "find intersection %d, %d:", i, j);
+          ESP_LOGI(TAG, "find intersection %d, %d:", i, j);
           position_t i1;
           position_t i2;
           if (intersectTwoCircles(app_config.node_positions[i], meas_ranges[i], app_config.node_positions[j], meas_ranges[j], &i1, &i2)) {
-            //ESP_LOGI(TAG, "-> (%d, %d), (%d, %d)", i1.x, i1.y, i2.x, i2.y);
+            ESP_LOGI(TAG, "-> (%d, %d), (%d, %d)", i1.x, i1.y, i2.x, i2.y);
             bool good_intersection = false;
             if (i1.x >= -FIELD_SIZE_MARGIN && i1.x <= FIELD_SIZE_X + FIELD_SIZE_MARGIN
               && i1.y >= -FIELD_SIZE_MARGIN && i1.y <= FIELD_SIZE_Y + FIELD_SIZE_MARGIN) {
@@ -167,7 +182,7 @@ bool processMeasurement() {
               intersection_pointer++;
             }
           } else {
-            //ESP_LOGI(TAG, "none");
+            ESP_LOGI(TAG, "none");
           }
         }
       }

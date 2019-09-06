@@ -6,7 +6,10 @@
 #define ALLOW_DELAY   5
 
 #define FIELD_SIZE_X      2200
-#define FIELD_SIZE_Y      490
+#define FIELD_SIZE_Y      4200
+
+// #define FIELD_SIZE_X      2000
+// #define FIELD_SIZE_Y      6000
 #define FIELD_SIZE_MARGIN 200
 
 //SDCARD
