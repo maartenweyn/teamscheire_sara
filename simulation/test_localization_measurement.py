@@ -9,27 +9,27 @@ import math
 import numpy as np
 import itertools
 
-noise_size = 0.3
-dist_thr = 20**2
+noise_size = 30
+dist_thr = 2000**2
 step_size = 1
-warn_threshold = 3**2
+warn_threshold = 300**2
 
-field = [20, 60]
-field_size_marging  = 2
+field = [2000, 6000]
+field_size_marging  = 200
 
 real_node_positions = {
-  1: [21, 63], 
-  2: [0, 63], 
+  1: [2100, 6300], 
+  2: [0, 6300], 
   3: [0, 0], 
-  4: [21, 0], 
-  5: [0, 32]}
+  4: [2100, 0], 
+  5: [0, 3200]}
 
 calib_node_positions = {
-  1: [21, 63], 
-  2: [0, 63], 
+  1: [2100, 6300], 
+  2: [0, 6300], 
   3: [0, 0], 
-  4: [21, 0], 
-  5: [0, 32]}
+  4: [2100, 0], 
+  5: [0, 3200]}
 
 # letters = {
 #   "A":  [10, 0],
@@ -45,21 +45,21 @@ calib_node_positions = {
 #   "G" : [10, 34]}
 
 letters = {
-  "A":  [10, 0],
-  "K" : [00, 6], 
-  "E" : [00, 30], 
-  "H" : [00, 54], 
-  "C" : [10, 60], 
-  "M" : [20, 54], 
-  "B" : [20, 30], 
-  "F" : [20, 6], 
-  "D" : [10, 6], 
-  "X" : [10, 30], 
-  "G" : [10, 54],
-  "R" : [20, 42],
-  "S" : [0, 42],
-  "P" : [20, 18],
-  "V" : [0, 18] }
+  "A":  [1000, 000],
+  "K" : [0000, 600], 
+  "E" : [0000, 3000], 
+  "H" : [0000, 5400], 
+  "C" : [1000, 6000], 
+  "M" : [2000, 5400], 
+  "B" : [2000, 3000], 
+  "F" : [2000, 600], 
+  "D" : [1000, 600], 
+  "X" : [1000, 3000], 
+  "G" : [1000, 5400],
+  "R" : [2000, 4200],
+  "S" : [0000, 4200],
+  "P" : [2000, 1800],
+  "V" : [0000, 1800] }
 
 colors = {
   1:  [0, 0, 1],
@@ -75,7 +75,7 @@ def intersectTwoCircles(x1,y1,r1, x2,y2,r2) :
   centerdx = x1 - x2
   centerdy = y1 - y2
   R = math.sqrt(centerdx * centerdx + centerdy * centerdy)
-  # print (r1, r2, R)
+  print ("x, y, r1, r2, R", centerdx, centerdy, r1, r2, R)
 
   if (not (abs(r1 - r2) <= R and R <= r1 + r2)) : #// no intersection
     return [] # empty list of results
@@ -83,10 +83,18 @@ def intersectTwoCircles(x1,y1,r1, x2,y2,r2) :
   # intersection(s) should exist
 
   R2 = R*R
-  R4 = R2*R2
   a = (r1*r1 - r2*r2) / (2 * R2)
-  r2r2 = (r1*r1 - r2*r2)
-  c = math.sqrt(2 * (r1*r1 + r2*r2) / R2 - (r2r2 * r2r2) / R4 - 1)
+  r1r2 = (r1*r1 - r2*r2)
+  r2r2 = r1r2 * r1r2
+  c1 = (r1*r1 + r2*r2) / R2
+  c2 = (r1r2 * r1r2) / (R2)
+  c3 = c2 / R2
+  ca = math.sqrt(2 * c1 - c3 - 1)
+  c = math.sqrt(2 * (r1*r1 + r2*r2) / R2 - (r1r2 * r1r2) / (R2*R2) - 1)
+
+  print("R2, a, r1r2, r2r2: ", R2, a, r1r2, r2r2)  
+  print("c1, c2, c3, ca, c: ", c1, c2, c3, ca, c)
+
 
   fx = (x1+x2) / 2 + a * (x2 - x1)
   gx = c * (y2 - y1) / 2
@@ -98,6 +106,11 @@ def intersectTwoCircles(x1,y1,r1, x2,y2,r2) :
   iy1 = fy + gy
   iy2 = fy - gy
 
+  print("fx, gx, fy, gy: ", fx, gx, fy, gy)
+
+  print("ix1, ix2, iy1, iy2: ", ix1, ix2, iy1, iy2)
+
+
   # note if gy == 0 and gx == 0 then the circles are tangent and there is only one solution
   # but that one solution will just be duplicated as the code is currently written
   return [[ix1, iy1], [ix2, iy2]]
@@ -105,10 +118,10 @@ def intersectTwoCircles(x1,y1,r1, x2,y2,r2) :
 fig1 = plt.figure()
 ax = fig1.add_subplot(111, aspect='equal')
 
-ax.set_xlim(-20, 40)
-ax.set_ylim(-20, 90)
+ax.set_xlim(-2000, 4000)
+ax.set_ylim(-2000, 9000)
 
-rect = patches.Rectangle([0, 0], 20, 60, fill=False)
+rect = patches.Rectangle([0, 0], 2000, 6000, fill=False)
 ax.add_patch(rect)
 
 for key in letters:
@@ -152,11 +165,11 @@ path = [[10, 20], #X
 
 #print(full_path)
 counter = 0
-#ranges = [-1, -1, 20.84, 0.76, -1, -1]
-#ranges = [13.45, 24.79, 50.06, 46.94, 24.29, -1] # r
-#ranges = [5.32, 20.87, -1, -1, 29.47, -1] # m
-ranges = [9.02, 11.60, 60.38, 60.89, 29.38] # c
-ranges = [28.52, -1, 34.39, 34.39, 11.39] # x
+#ranges = [-1, -1, 2084, 76, -1, -1]
+#ranges = [1345, 2479, 5006, 4694, 2429, -1] # r
+#ranges = [532, 2087, -1, -1, 2947, -1] # m
+#ranges = [902, 1160, 6038, 6089, 2938] # c
+ranges = [2852, -1, 3439, 3439, 1139] # x
 letterpos = "x"
 
 
@@ -224,7 +237,7 @@ for pair in result_list:
           sum_inter[1] += intersection[1]
           nr_intersections += 1
 
-          circle1 = patches.Circle(intersection, 0.5, facecolor='none', edgecolor='black')
+          circle1 = patches.Circle(intersection, 50, facecolor='none', edgecolor='black')
           ax.add_patch(circle1)
           selected.append(intersection)
       else:
@@ -235,68 +248,77 @@ for pair in result_list:
     elif (len(selected) > 0):
       intersections1.append(selected)
 
-avg_inter = [sum_inter[0] / nr_intersections, sum_inter[1] / nr_intersections]
+if nr_intersections > 0:
+  avg_inter = [sum_inter[0] / nr_intersections, sum_inter[1] / nr_intersections]
+else:
+  avg_inter = [ -1, -1]
 
 # print ("intersections", intersections[achor])
 print ("temp", avg_inter)
+circle = patches.Circle(avg_inter, 100, facecolor='b', edgecolor='yellow')
+ax.add_patch(circle)
 
 
-
-for i in intersections1:
-  print ("intersection1", i[0])
-  intersections_filtered.append(i[0])
-  circle = patches.Circle(i[0], 0.5, facecolor='r', edgecolor='none')
-  ax.add_patch(circle)
-
-for i in intersections2:
-  print ("intersection2", i)
-  d1 = (i[0][0] - avg_inter[0]) ** 2 + (i[0][1] - avg_inter[1]) ** 2 
-  d2 = (i[1][0] - avg_inter[0]) ** 2 + (i[1][1] - avg_inter[1]) ** 2 
-
-  print ("d1, d2", d1, d2)
-
-  if (d1 < d2):
-    print ("selected", i[0])
+if nr_intersections > 2:
+  for i in intersections1:
+    print ("intersection1", i[0])
     intersections_filtered.append(i[0])
-    circle1 = patches.Circle(i[0], 0.5, facecolor='r', edgecolor='none')
-    circle2 = patches.Circle(i[1], 0.5, facecolor='none', edgecolor='black')
-  else:
-    print ("selected", i[1])
-    intersections_filtered.append(i[1])
-    circle1 = patches.Circle(i[1], 0.5, facecolor='r', edgecolor='none')
-    circle2 = patches.Circle(i[0], 0.5, facecolor='none', edgecolor='black')
+    circle = patches.Circle(i[0], 50, facecolor='r', edgecolor='none')
+    ax.add_patch(circle)
 
-    ax.add_patch(circle1)
-    ax.add_patch(circle2)
+  for i in intersections2:
+    print ("intersection2", i)
+    d1 = (i[0][0] - avg_inter[0]) ** 2 + (i[0][1] - avg_inter[1]) ** 2 
+    d2 = (i[1][0] - avg_inter[0]) ** 2 + (i[1][1] - avg_inter[1]) ** 2 
+
+    print ("d1, d2", d1, d2)
+
+    if (d1 < d2):
+      print ("selected", i[0])
+      intersections_filtered.append(i[0])
+      circle1 = patches.Circle(i[0], 50, facecolor='r', edgecolor='none')
+      circle2 = patches.Circle(i[1], 50, facecolor='none', edgecolor='black')
+    else:
+      print ("selected", i[1])
+      intersections_filtered.append(i[1])
+      circle1 = patches.Circle(i[1], 50, facecolor='r', edgecolor='none')
+      circle2 = patches.Circle(i[0], 50, facecolor='none', edgecolor='black')
+
+      ax.add_patch(circle1)
+      ax.add_patch(circle2)
 
     
 
 
 
   
-# circle = patches.Circle(avg_inter, 0.5, facecolor='r', edgecolor='y')
-# ax.add_patch(circle)
-# circles.append(circle)
-circle = patches.Circle(avg_inter, 1, facecolor='b', edgecolor='yellow')
-ax.add_patch(circle)
+  # circle = patches.Circle(avg_inter, 0.5, facecolor='r', edgecolor='y')
+  # ax.add_patch(circle)
+  # circles.append(circle)
 
 
-# print ("Filtered")
-# print(intersections_filtered)
 
-sum_inter = [0 , 0]
-nr_intersections = 0
-for i in intersections_filtered:
-  sum_inter[0] += i[0]
-  sum_inter[1] += i[1]
-  nr_intersections += 1
-  print("sel", i)
+  # print ("Filtered")
+  # print(intersections_filtered)
 
-avg_inter = [sum_inter[0] / nr_intersections, sum_inter[1] / nr_intersections]
+  sum_inter = [0 , 0]
+  nr_intersections = 0
+  for i in intersections_filtered:
+    sum_inter[0] += i[0]
+    sum_inter[1] += i[1]
+    nr_intersections += 1
+    print("sel", i)
+
+  if nr_intersections > 0:
+    avg_inter = [sum_inter[0] / nr_intersections, sum_inter[1] / nr_intersections]
+  else:
+    avg_inter = [ -1, -1]
+
+
 # print ("filtered", intersections_filtered[achor])
 print ("final", avg_inter)
 
-circle_estimation = patches.Circle(avg_inter, 1, facecolor='green', edgecolor='green')
+circle_estimation = patches.Circle(avg_inter, 100, facecolor='green', edgecolor='green')
 circle_estimation.set_alpha(0.5)
 ax.add_patch(circle_estimation)
 
