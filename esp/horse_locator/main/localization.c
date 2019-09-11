@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <math.h>
 
-//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 
 #define TAG "LOCALIZ: "
@@ -142,11 +142,12 @@ bool processMeasurement() {
     printf("%d\t", meas_ranges[i]);
   }
   printf("\n");
+  // for (int i = 0; i < 6; i++)
+  // {
+  //   printf("%d\t", meas_counter[i]);
+  // }
+  // printf("\n");
   for (int i = 0; i < 6; i++)
-  {
-    printf("%d\t", meas_counter[i]);
-  }
-  printf("\n");for (int i = 0; i < 6; i++)
   {
     printf("%d\t", meas_absence_counter[i]);
   }
@@ -211,50 +212,76 @@ bool processMeasurement() {
   if (nr_of_intersections == 0) {
     // no intersections
     //last_position_counter++;
-    return false;
-  }
-  
-  position_t avg_intersection = {sum_intersection.x / nr_of_intersections, sum_intersection.y / nr_of_intersections};
-  sum_intersection.x = 0;
-  sum_intersection.y = 0;
+    // find smallest ranges
+    uint32_t min_range = UINT32_MAX;
+    int min_index = -1;
+    for (int i = 0; i < 6; i++) {
+      if (meas_absence_counter[i] < USE_MEASUREMENT_THRESHOLD) {
+        if (meas_ranges[i] < min_range)
+        {
+          min_range = meas_ranges[i];
+          min_index = i;
+        }
+      }
+    }
 
-  ESP_LOGD(TAG, "avg_intersection: %d, %d", avg_intersection.x, avg_intersection.y);
+    ESP_LOGD(TAG, "min range: %d: %d", min_index, min_range);
 
-  if (nr_of_intersections > 2 ) {
-    // select the intersections closed to the current average, if there are 2
-    for (int i = 0; i < intersection_pointer; i++) {
-      position_t selected_position;
-      if (intersections[i*2].x == -100) {
-        selected_position.x = intersections[1 + i*2].x;
-        selected_position.y = intersections[1 + i*2].y;
-      } else if (intersections[1 + i*2].x == -100) {
-        selected_position.x = intersections[i*2].x;
-        selected_position.y = intersections[i*2].y;
+
+    if (min_index > -1){
+      if (min_range < app_config.nearby_threshold) {
+        current_position.x = app_config.node_positions[min_index].x;
+        current_position.y = app_config.node_positions[min_index].y;
       } else {
-        int diffx1 = (intersections[i*2].x - avg_intersection.x);
-        int diffy1 = (intersections[i*2].y - avg_intersection.y);
-        int d1 = diffx1 * diffx1 + diffy1 * diffy1;
-        int diffx2 = (intersections[1+i*2].x - avg_intersection.x);
-        int diffy2 = (intersections[1+i*2].y - avg_intersection.y);
-        int d2 = diffx2 * diffx2+ diffy2 * diffy2;
-        if (d1 <= d2) {
+        return false;
+      }
+    } else {
+      return false;
+    }
+  } else {
+  
+    position_t avg_intersection = {sum_intersection.x / nr_of_intersections, sum_intersection.y / nr_of_intersections};
+    sum_intersection.x = 0;
+    sum_intersection.y = 0;
+
+    ESP_LOGD(TAG, "avg_intersection: %d, %d", avg_intersection.x, avg_intersection.y);
+
+    if (nr_of_intersections > 2 ) {
+      // select the intersections closed to the current average, if there are 2
+      for (int i = 0; i < intersection_pointer; i++) {
+        position_t selected_position;
+        if (intersections[i*2].x == -100) {
+          selected_position.x = intersections[1 + i*2].x;
+          selected_position.y = intersections[1 + i*2].y;
+        } else if (intersections[1 + i*2].x == -100) {
           selected_position.x = intersections[i*2].x;
           selected_position.y = intersections[i*2].y;
         } else {
-          selected_position.x = intersections[1 + i*2].x;
-          selected_position.y = intersections[1 + i*2].y;
+          int diffx1 = (intersections[i*2].x - avg_intersection.x);
+          int diffy1 = (intersections[i*2].y - avg_intersection.y);
+          int d1 = diffx1 * diffx1 + diffy1 * diffy1;
+          int diffx2 = (intersections[1+i*2].x - avg_intersection.x);
+          int diffy2 = (intersections[1+i*2].y - avg_intersection.y);
+          int d2 = diffx2 * diffx2+ diffy2 * diffy2;
+          if (d1 <= d2) {
+            selected_position.x = intersections[i*2].x;
+            selected_position.y = intersections[i*2].y;
+          } else {
+            selected_position.x = intersections[1 + i*2].x;
+            selected_position.y = intersections[1 + i*2].y;
+          }
         }
+        intersections[i].x = selected_position.x;
+        intersections[i].y = selected_position.y;
+        sum_intersection.x += selected_position.x;
+        sum_intersection.y += selected_position.y;
       }
-      intersections[i].x = selected_position.x;
-      intersections[i].y = selected_position.y;
-      sum_intersection.x += selected_position.x;
-      sum_intersection.y += selected_position.y;
+      current_position.x = sum_intersection.x / intersection_pointer;
+      current_position.y = sum_intersection.y / intersection_pointer;
+    } else {
+      current_position.x = avg_intersection.x;
+      current_position.y = avg_intersection.y;
     }
-    current_position.x = sum_intersection.x / intersection_pointer;
-    current_position.y = sum_intersection.y / intersection_pointer;
-  } else {
-    current_position.x = avg_intersection.x;
-    current_position.y = avg_intersection.y;
   }
 
   ESP_LOGD(TAG, "current_position: %d, %d", current_position.x, current_position.y);
@@ -283,7 +310,7 @@ void watch_position( void *pvParameters ){
           ESP_LOGI(TAG, "letter");
           //leds_setcolor(4, 100, 100, 100);
         } else {
-          ESP_LOGI(TAG, "position, no letter");
+          ESP_LOGI(TAG, "position %d %d, no letter", current_position.x, current_position.y);
           //leds_setcolor(4, 0, 100, 0);
         }
       } else {
