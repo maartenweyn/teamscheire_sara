@@ -6,29 +6,31 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_log.h"
 #include "app_leds.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 
+//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#include "esp_log.h"
+
 #define TAG "LOCALIZ: "
 
-letter_position_t letters[NR_OF_LETTERS] = {
-  //{'A', 100, 0},
-  {'A', 1000, 0},
-  {'K', 0, 600},
-  {'E', 0, 2000}, 
-  {'H', 0, 3400}, 
-  {'C', 1000, 4000}, 
-  {'M', 2000, 3400}, 
-  {'B', 2000, 2000}, 
-  {'F', 2000, 600}, 
-  {'D', 1000, 600}, 
-  {'X', 1000, 2000}, 
-  {'G', 1000, 3400}
-};
+// letter_position_t letters[NR_OF_LETTERS] = {
+//   //{'A', 100, 0},
+//   {'A', 1000, 0},
+//   {'K', 0, 600},
+//   {'E', 0, 2000}, 
+//   {'H', 0, 3400}, 
+//   {'C', 1000, 4000}, 
+//   {'M', 2000, 3400}, 
+//   {'B', 2000, 2000}, 
+//   {'F', 2000, 600}, 
+//   {'D', 1000, 600}, 
+//   {'X', 1000, 2000}, 
+//   {'G', 1000, 3400}
+// };
 
 // letter_position_t letters[NR_OF_LETTERS] = {
 //   //{'A', 100, 0},
@@ -46,7 +48,8 @@ letter_position_t letters[NR_OF_LETTERS] = {
 // };
 
 int meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
-int meas_counter[6] = {100,100,100,100,100,100};
+int meas_absence_counter[6] = {100,100,100,100,100,100};
+int meas_counter[6] = {0,0,0,0,0,0};
 
 bool receiving_ranges = false;
 
@@ -80,7 +83,7 @@ static bool intersectTwoCircles(position_t p1, int r1, position_t p2, int r2, po
   int centerdy = p1.y - p2.y;
   
   int R = sqrt(centerdx * centerdx + centerdy * centerdy);
-  ESP_LOGI(TAG, "r, r, R %d, %d, %d\n", r1, r2, R);
+  ESP_LOGD(TAG, "x, y, r, r, R %d, %d, %d, %d, %d", centerdx, centerdy, r1, r2, R);
 
   if ((! ((abs(r1 - r2) <= R)  && (R <= r1 + r2))) || (R == 0))  {// no intersection
     return false;
@@ -89,11 +92,18 @@ static bool intersectTwoCircles(position_t p1, int r1, position_t p2, int r2, po
 
   //intersection(s) should exist
 
-  int R2 = R*R;
-  int R4 = R2*R2;
-  float  a = (r1*r1 - r2*r2) / (2 * R2);
-  int r2r2 = (r1*r1 - r2*r2);
-  float c = sqrt(2 * (r1*r1 + r2*r2) / R2 - (r2r2 * r2r2) / R4 - 1);
+  uint32_t R2 = R*R;
+  int r1r2 = (r1*r1 - r2*r2);
+  double  a = r1r2 / (2 * (double) R2);
+
+  double c1 = (r1*r1 + r2*r2) / (double) R2;
+  double c2 = r1r2 / (double) R2;
+  double c3 = c2 * c2;
+  double c = sqrt((2 *  c1) - c3  - 1);
+
+  ESP_LOGD(TAG, "R2, a, r1r2: %d, %f, %d", R2, a, r1r2);
+  ESP_LOGD(TAG, "c1, c2, c3, c: %f, %f, %f, %f", c1, c2, c3, c);
+
 
   float fx = (p1.x + p2.x) / 2 + a * (p2.x - p1.x);
   float gx = c * (p2.y - p1.y) / 2;
@@ -105,7 +115,9 @@ static bool intersectTwoCircles(position_t p1, int r1, position_t p2, int r2, po
   i1->y = (int) (fy + gy);
   i2->y = (int) (fy - gy);
 
-  ESP_LOGI(TAG, "a, c, fx, gx, fy, gy: %f, %f, %f, %f, %f, %f\n", a, c, fx, gx, fy, gy);
+  ESP_LOGD(TAG, "fx, gx, fy, gy: %f, %f, %f, %f", fx, gx, fy, gy);
+
+  ESP_LOGD(TAG, "i1.x, i1.y, i2.x, i2.y: %d, %d, %d, %d", i1->x, i1->y, i2->x, i2->y);
 
 //  # note if gy == 0 and gx == 0 then the circles are tangent and there is only one solution
 //  # but that one solution will just be duplicated as the code is currently written
@@ -134,6 +146,10 @@ bool processMeasurement() {
   {
     printf("%d\t", meas_counter[i]);
   }
+  printf("\n");for (int i = 0; i < 6; i++)
+  {
+    printf("%d\t", meas_absence_counter[i]);
+  }
   printf("\n");
 
 
@@ -144,17 +160,17 @@ bool processMeasurement() {
   sum_intersection.y = 0;
   
   for (int i = 0; i < 5; i++) {
-    if (meas_counter[i] < USE_MEASUREMENT_THRESHOLD) {
+    if (meas_absence_counter[i] < USE_MEASUREMENT_THRESHOLD) {
       for (int j = i + 1; j < 6; j++) {
-        if (meas_counter[j] < USE_MEASUREMENT_THRESHOLD) {
-          ESP_LOGI(TAG, "find intersection %d, %d:", i, j);
+        if (meas_absence_counter[j] < USE_MEASUREMENT_THRESHOLD) {
+          ESP_LOGD(TAG, "find intersection %d, %d:", i, j);
           position_t i1;
           position_t i2;
           if (intersectTwoCircles(app_config.node_positions[i], meas_ranges[i], app_config.node_positions[j], meas_ranges[j], &i1, &i2)) {
-            ESP_LOGI(TAG, "-> (%d, %d), (%d, %d)", i1.x, i1.y, i2.x, i2.y);
+            ESP_LOGD(TAG, "intersection: (%d, %d), (%d, %d)", i1.x, i1.y, i2.x, i2.y);
             bool good_intersection = false;
-            if (i1.x >= -FIELD_SIZE_MARGIN && i1.x <= FIELD_SIZE_X + FIELD_SIZE_MARGIN
-              && i1.y >= -FIELD_SIZE_MARGIN && i1.y <= FIELD_SIZE_Y + FIELD_SIZE_MARGIN) {
+            if (i1.x >= -app_config.field_size_margin && i1.x <= app_config.field_size.x + app_config.field_size_margin
+              && i1.y >= -app_config.field_size_margin && i1.y <= app_config.field_size.y + app_config.field_size_margin) {
                 good_intersection = true;
                 intersections[intersection_pointer * 2].x = i1.x;
                 intersections[intersection_pointer * 2].y = i1.y;
@@ -165,8 +181,8 @@ bool processMeasurement() {
                intersections[intersection_pointer * 2].x = -100;
                intersections[intersection_pointer * 2].y = -100;
             }
-            if ((i2.x >= -FIELD_SIZE_MARGIN && i2.x <= FIELD_SIZE_X + FIELD_SIZE_MARGIN)
-              && (i2.y >= -FIELD_SIZE_MARGIN && i2.y <= FIELD_SIZE_Y + FIELD_SIZE_MARGIN)){
+            if ((i2.x >= -app_config.field_size_margin && i2.x <= app_config.field_size.x + app_config.field_size_margin)
+              && (i2.y >= -app_config.field_size_margin && i2.y <= app_config.field_size.y + app_config.field_size_margin)){
                 good_intersection = true;
                 intersections[1 + intersection_pointer * 2].x = i2.x;
                 intersections[1 + intersection_pointer * 2].y = i2.y;
@@ -177,6 +193,8 @@ bool processMeasurement() {
                intersections[1 + intersection_pointer * 2].x = -100;
                intersections[1 + intersection_pointer * 2].y = -100;
             }
+
+            ESP_LOGD(TAG, "nr_of_intersections: %d", nr_of_intersections);
 
             if (good_intersection) {
               intersection_pointer++;
@@ -200,44 +218,52 @@ bool processMeasurement() {
   sum_intersection.x = 0;
   sum_intersection.y = 0;
 
-  // select the intersections closed to the current average, if there are 2
-  for (int i = 0; i < intersection_pointer; i++) {
-    position_t selected_position;
-    if (intersections[i*2].x == -100) {
-      selected_position.x = intersections[1 + i*2].x;
-      selected_position.y = intersections[1 + i*2].y;
-    } else if (intersections[1 + i*2].x == -100) {
-      selected_position.x = intersections[i*2].x;
-      selected_position.y = intersections[i*2].y;
-    } else {
-      int diffx1 = (intersections[i*2].x - avg_intersection.x);
-      int diffy1 = (intersections[i*2].y - avg_intersection.y);
-      int d1 = diffx1 * diffx1 + diffy1 * diffy1;
-      int diffx2 = (intersections[1+i*2].x - avg_intersection.x);
-      int diffy2 = (intersections[1+i*2].y - avg_intersection.y);
-      int d2 = diffx2 * diffx2+ diffy2 * diffy2;
-      if (d1 <= d2) {
+  ESP_LOGD(TAG, "avg_intersection: %d, %d", avg_intersection.x, avg_intersection.y);
+
+  if (nr_of_intersections > 2 ) {
+    // select the intersections closed to the current average, if there are 2
+    for (int i = 0; i < intersection_pointer; i++) {
+      position_t selected_position;
+      if (intersections[i*2].x == -100) {
+        selected_position.x = intersections[1 + i*2].x;
+        selected_position.y = intersections[1 + i*2].y;
+      } else if (intersections[1 + i*2].x == -100) {
         selected_position.x = intersections[i*2].x;
         selected_position.y = intersections[i*2].y;
       } else {
-        selected_position.x = intersections[1 + i*2].x;
-        selected_position.y = intersections[1 + i*2].y;
+        int diffx1 = (intersections[i*2].x - avg_intersection.x);
+        int diffy1 = (intersections[i*2].y - avg_intersection.y);
+        int d1 = diffx1 * diffx1 + diffy1 * diffy1;
+        int diffx2 = (intersections[1+i*2].x - avg_intersection.x);
+        int diffy2 = (intersections[1+i*2].y - avg_intersection.y);
+        int d2 = diffx2 * diffx2+ diffy2 * diffy2;
+        if (d1 <= d2) {
+          selected_position.x = intersections[i*2].x;
+          selected_position.y = intersections[i*2].y;
+        } else {
+          selected_position.x = intersections[1 + i*2].x;
+          selected_position.y = intersections[1 + i*2].y;
+        }
       }
+      intersections[i].x = selected_position.x;
+      intersections[i].y = selected_position.y;
+      sum_intersection.x += selected_position.x;
+      sum_intersection.y += selected_position.y;
     }
-    intersections[i].x = selected_position.x;
-    intersections[i].y = selected_position.y;
-    sum_intersection.x += selected_position.x;
-    sum_intersection.y += selected_position.y;
+    current_position.x = sum_intersection.x / intersection_pointer;
+    current_position.y = sum_intersection.y / intersection_pointer;
+  } else {
+    current_position.x = avg_intersection.x;
+    current_position.y = avg_intersection.y;
   }
 
-  current_position.x = sum_intersection.x / intersection_pointer;
-  current_position.y = sum_intersection.y / intersection_pointer;
+  ESP_LOGD(TAG, "current_position: %d, %d", current_position.x, current_position.y);
 
   last_position_counter = 0;
 
   nearby_letter = -1;
   for (int i = 0; i < NR_OF_LETTERS; i++) {
-    int d = pow(letters[i].x - current_position.x, 2) + pow(letters[i].y - current_position.y, 2);
+    int d = pow(app_config.letters[i].x - current_position.x, 2) + pow(app_config.letters[i].y - current_position.y, 2);
     if (d < app_config.nearby_threshold * app_config.nearby_threshold) {
       nearby_letter = i;
       break;
@@ -253,7 +279,7 @@ void watch_position( void *pvParameters ){
     if (receiving_ranges) {
       if ((last_position_counter < ALLOW_DELAY)) {
         if ((nearby_letter > -1)) {
-          play_letter(letters[nearby_letter].letter);
+          play_letter(app_config.letters[nearby_letter].letter);
           ESP_LOGI(TAG, "letter");
           //leds_setcolor(4, 100, 100, 100);
         } else {
@@ -279,18 +305,15 @@ void watch_position( void *pvParameters ){
 
 void locator_task( void *pvParameters ){
   (void) pvParameters;
-
     
   xTaskCreatePinnedToCore(watch_position, "watch_position", 4096, NULL, 20, NULL, 1);
 
+
+  //uwb_test_range();
+
+
   while(1) {
-    //bool got_position = 
-    uwb_parser_check_data();
-    // if (got_position) {
-    //   if (nearby_letter > -1) {
-    //     play_letter(letters[nearby_letter].letter);
-    //   }
-    // }
+    bool got_position = uwb_parser_check_data();
   }
 
  }

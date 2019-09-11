@@ -90,8 +90,12 @@ void app_main()
   WM8978_EQ4_Set(0,24);
   WM8978_EQ5_Set(0,24);
 
+#ifndef SKIP_SD_CARD
   init_sdcard();
+#endif
+
   load_config();
+
 
   static httpd_handle_t server = NULL;
   initialise_wifi(&server);

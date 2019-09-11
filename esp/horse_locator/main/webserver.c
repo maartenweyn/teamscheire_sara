@@ -21,7 +21,6 @@
 
 #include <esp_wifi.h>
 #include <esp_event_loop.h>
-#include <esp_log.h>
 #include <esp_system.h>
 #include <nvs_flash.h>
 #include <sys/param.h>
@@ -32,6 +31,8 @@
 #include "app_config.h"
 
 
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#include <esp_log.h>
 #define TAG "webserver:"
 
 
@@ -55,11 +56,11 @@ static char read_buf[1024];
 // const static char not_found_page[] = "<!DOCTYPE html>"
 //       "<html>\n"
 //       "<head>\n"
-//       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+//       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\'>\n"
 //       "<title>Team Scheire</title>\n"
 //       "</head>\n"
 //       "<body>\n"
-//       "<h1 class=\"container\">Page not Found!</h1>\n"
+//       "<h1 class=\"container\'>Page not Found!</h1>\n"
 //       "</body>\n"
 //       "</html>\n";
 
@@ -111,7 +112,7 @@ static void print_header(int refresh, httpd_req_t *req) {
 	if (refresh > 0) {
 		char temp[10];
 		sprintf(temp, "%d", refresh);
-  	strcat(read_buf, "<meta http-equiv=\"refresh\" content=\"");
+  	    strcat(read_buf, "<meta http-equiv=\"refresh\" content=\"");
 		strcat(read_buf, temp);
 		strcat(read_buf, "\">");
 	}
@@ -154,13 +155,75 @@ void print_main_content(httpd_req_t *req) {
 		{
 			strcat(read_buf, "<p>Letter:  None</p>");
 		} else {
-			sprintf(temp, "<p>Letter:  %c</p>", letters[nearby_letter].letter);
+			sprintf(temp, "<p>Letter:  %c</p>", app_config.letters[nearby_letter].letter);
 			strcat(read_buf, temp);
 		}
 
 		strcat(read_buf, "</body></html>");
 
 		//ESP_LOGD(TAG,"CONTENT %s", read_buf);
+
+		httpd_resp_send_chunk(req, read_buf, strlen(read_buf));
+}
+
+void print_config_content(httpd_req_t *req) {
+		memset(read_buf, 0, 1024);
+		char temp[200];
+		
+		strcpy(read_buf, "<h2>Configuration</h2>");
+
+        strcat(read_buf, "<form \"config\" method=\"get\">");
+        strcat(read_buf, "Wi-Fi SSID<br>");
+        sprintf(temp, "<input type=\"text\" name=\"wifi_ssid\" value=\"%s\">", app_config.wifi_ssid);
+        strcat(read_buf, temp);
+        strcat(read_buf, "");
+        strcat(read_buf, "<br>");
+        strcat(read_buf, "Wi-Fi password:<br>");
+        sprintf(temp, "<input type=\"password\" name=\"wifi_passwd\" value=\"%s\">", app_config.wifi_passwd);
+        strcat(read_buf, temp);
+        strcat(read_buf, "<br>");
+        strcat(read_buf, "Nearby threshold (cm):<br>");
+        sprintf(temp, "<input type=\"text\" name=\"nearby_threshold\" value=\"%d\">", app_config.nearby_threshold);
+        strcat(read_buf, temp);
+        strcat(read_buf, "<br>");
+        for (int i = 0; i < 6; i++) {
+			sprintf(temp, "Node %d x / y (cm):<br><input type=\"text\" name=\"node_positions_%d_x\" value=\"%d\"><input type=\"text\" name=\"node_positions_%d_y\" value=\"%d\"><br>", i+1, i+1, app_config.node_positions[i].x,  i+1, app_config.node_positions[i].y);
+            strcat(read_buf, temp);
+		}
+
+        httpd_resp_send_chunk(req, read_buf, strlen(read_buf));
+        ESP_LOGD(TAG,"CONTENT (%d) %s", strlen(read_buf), read_buf);
+        memset(read_buf, 0, 1024);
+  
+        strcat(read_buf, "Field margin (cm):<br>");
+        sprintf(temp, "<input type=\"text\" name=\"field_size_margin\" value=\"%d\">", app_config.field_size_margin);
+        strcat(read_buf, temp);
+        strcat(read_buf, "<br>");
+        strcat(read_buf, "Field Size x / y (cm):<br>");
+        sprintf(temp, "<input type=\"text\" name=\"field_size_x\" value=\"%d\">", app_config.field_size.x);
+        strcat(read_buf, temp);
+        sprintf(temp, "<input type=\"text\" name=\"field_size_y\" value=\"%d\">", app_config.field_size.y);
+        strcat(read_buf, temp);
+        strcat(read_buf, "<br>");
+
+        httpd_resp_send_chunk(req, read_buf, strlen(read_buf));
+        ESP_LOGD(TAG,"CONTENT (%d) %s", strlen(read_buf), read_buf);
+        memset(read_buf, 0, 1024);
+
+        for (int i = 0; i < NR_OF_LETTERS; i++) {
+			sprintf(read_buf, "Letter %c x / y (cm):<br><input type=\"text\" name=\"letter_%d_x\" value=\"%d\"><input type=\"text\" name=\"letter_%d_y\" value=\"%d\"><br>", app_config.letters[i].letter, i+1, app_config.letters[i].x, i+1, app_config.letters[i].y);
+            //strcat(read_buf, temp);
+            httpd_resp_send_chunk(req, read_buf, strlen(read_buf));
+            ESP_LOGD(TAG,"CONTENT (%d) %s", strlen(read_buf), read_buf);
+            memset(read_buf, 0, 1024);
+		}
+
+        strcat(read_buf, "<br><br>");
+        strcat(read_buf, "<input type=\"submit\" value=\"Submit\">");
+        strcat(read_buf, "</form>");
+		strcat(read_buf, "</body></html>");
+
+		ESP_LOGD(TAG,"CONTENT (%d) %s", strlen(read_buf), read_buf);
 
 		httpd_resp_send_chunk(req, read_buf, strlen(read_buf));
 }
@@ -227,7 +290,7 @@ void print_main_content(httpd_req_t *req) {
 
 // 	memset(read_buf, 0, 1024);
 
-// 	strcpy(read_buf, "<a href=\"/\">Home</a>");
+// 	strcpy(read_buf, "<a href=\"/\\">Home</a>");
 
 // 	char* ptr;
 //   char delim[] = "/";
@@ -443,23 +506,19 @@ esp_err_t index_handler(httpd_req_t *req)
         }
         free(buf);
     }
-		
-		
-		print_header(5, req);
-		print_main_content(req);
+			
+    print_header(5, req);
+    print_main_content(req);
 
     // End response
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
 }
 
-
-esp_err_t calib_handler(httpd_req_t *req)
+esp_err_t config_handler(httpd_req_t *req)
 {
     char*  buf;
     size_t buf_len;
-		
-
 
     /* Get header value string length and allocate memory for length + 1,
      * extra byte for null termination */
@@ -473,12 +532,129 @@ esp_err_t calib_handler(httpd_req_t *req)
         free(buf);
     }
 
-		print_header(0, req);
+    print_header(0, req);
 
-		memset(read_buf, 0, 1024);
-		strcpy(read_buf, "<a href=\"/\">Home</a>");
+    memset(read_buf, 0, 1024);
+    strcpy(read_buf, "<a href=\"/\">Home</a>");
 
-		/* Read URL query string length and allocate memory for length + 1,
+    /* Read URL query string length and allocate memory for length + 1,
+     * extra byte for null termination */
+    bool safe_config = false;
+    buf_len = httpd_req_get_url_query_len(req) + 1;
+    if (buf_len > 1) {
+        buf = malloc(buf_len);
+        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+            ESP_LOGD(TAG, "Found URL query => %s", buf);
+            char param[32];
+            // wifi
+            if (httpd_query_key_value(buf, "wifi_ssid", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query parameter => wifi_ssid=%s", param);
+                strcpy(app_config.wifi_ssid, param);
+                safe_config = true;
+            }
+            if (httpd_query_key_value(buf, "wifi_passwd", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query parameter => wifi_passwd=%s", param);
+                strcpy(app_config.wifi_passwd, param);
+                safe_config = true;
+            }
+            //node positions
+            for (int i = 0; i < 6; i++) {
+                char par_name[24];
+			    sprintf(par_name, "node_positions_%d_x", i+1);
+                if (httpd_query_key_value(buf, par_name, param, sizeof(param)) == ESP_OK) {
+                    ESP_LOGI(TAG, "Found URL query parameter => %s=%s", par_name, param);
+                    app_config.node_positions[i].x = atoi(param);
+                    safe_config = true;
+                }
+                sprintf(par_name, "node_positions_%d_y", i+1);
+                if (httpd_query_key_value(buf, par_name, param, sizeof(param)) == ESP_OK) {
+                    ESP_LOGI(TAG, "Found URL query parameter => %s=%s", par_name, param);
+                    app_config.node_positions[i].y = atoi(param);
+                    safe_config = true;
+                }
+		    }
+
+            //nearby_threshold
+            if (httpd_query_key_value(buf, "nearby_threshold", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "nearby_threshold", param);
+                app_config.nearby_threshold = atoi(param);
+                safe_config = true;
+            }
+
+            //field_size
+            if (httpd_query_key_value(buf, "field_size_x", param, sizeof(param)) == ESP_OK) {
+                    ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "field_size_x", param);
+                    app_config.field_size.x = atoi(param);
+                    safe_config = true;
+            }
+            if (httpd_query_key_value(buf, "field_size_y", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "field_size_y", param);
+                app_config.field_size.y = atoi(param);
+                safe_config = true;
+            }
+
+            //field_size_margin
+            if (httpd_query_key_value(buf, "field_size_margin", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "field_size_margin", param);
+                app_config.field_size_margin = atoi(param);
+                safe_config = true;
+            }
+
+            //letters
+            for (int i = 0; i < NR_OF_LETTERS; i++) {
+                char par_name[24];
+			    sprintf(par_name, "letter_%d_x", i+1);
+                if (httpd_query_key_value(buf, par_name, param, sizeof(param)) == ESP_OK) {
+                    ESP_LOGI(TAG, "Found URL query parameter => %s=%s", par_name, param);
+                    app_config.letters[i].x = atoi(param);
+                    safe_config = true;
+                }
+
+                sprintf(par_name, "letter_%d_y", i+1);
+                if (httpd_query_key_value(buf, par_name, param, sizeof(param)) == ESP_OK) {
+                    ESP_LOGI(TAG, "Found URL query parameter => %s=%s", par_name, param);
+                    app_config.letters[i].y = atoi(param);
+                    safe_config = true;
+                }
+            }
+            
+            if (safe_config) save_config();
+            
+        }
+        free(buf);
+    }
+
+
+    print_config_content(req);
+
+    // End response
+    httpd_resp_send_chunk(req, NULL, 0);
+    return ESP_OK;
+}
+
+esp_err_t calib_handler(httpd_req_t *req)
+{
+    char*  buf;
+    size_t buf_len;
+		
+    /* Get header value string length and allocate memory for length + 1,
+     * extra byte for null termination */
+    buf_len = httpd_req_get_hdr_value_len(req, "Host") + 1;
+    if (buf_len > 1) {
+        buf = malloc(buf_len);
+        /* Copy null terminated value string into buffer */
+        if (httpd_req_get_hdr_value_str(req, "Host", buf, buf_len) == ESP_OK) {
+            ESP_LOGI(TAG, "Found header => Host: %s", buf);
+        }
+        free(buf);
+    }
+
+    print_header(0, req);
+
+    memset(read_buf, 0, 1024);
+    strcpy(read_buf, "<a href=\"/\">Home</a>");
+
+    /* Read URL query string length and allocate memory for length + 1,
      * extra byte for null termination */
     buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1) {
@@ -489,34 +665,33 @@ esp_err_t calib_handler(httpd_req_t *req)
             /* Get value of expected key from query string */
             if (httpd_query_key_value(buf, "id", param, sizeof(param)) == ESP_OK) {
                 ESP_LOGI(TAG, "Found URL query parameter => id=%s", param);
-								int anchor_id = atoi(param);
-								if (httpd_query_key_value(buf, "x", param, sizeof(param)) == ESP_OK) {
-									ESP_LOGI(TAG, "Found URL query parameter => x=%s", param);
-									int x_coord = atoi(param);
-									if (httpd_query_key_value(buf, "y", param, sizeof(param)) == ESP_OK) {
-										ESP_LOGI(TAG, "Found URL query parameter => y=%s", param);
-										int y_coord = atoi(param);
-										if (anchor_id <= 6 && anchor_id > 0) {
-											app_config.node_positions[anchor_id - 1].x = x_coord;
-											app_config.node_positions[anchor_id - 1].y = y_coord;
-											char temp[50];
-											sprintf(temp, "<p class=\"green\">Anchor %d adapted</p>", anchor_id);
-											strcat(read_buf, temp);
-											save_config();
-										} else {
-											strcat(read_buf, "<p class=\"red\">Invallid anchor id</p>");
-										}
-									}
-								}
+                int anchor_id = atoi(param);
+                if (httpd_query_key_value(buf, "x", param, sizeof(param)) == ESP_OK) {
+                    ESP_LOGI(TAG, "Found URL query parameter => x=%s", param);
+                    int x_coord = atoi(param);
+                    if (httpd_query_key_value(buf, "y", param, sizeof(param)) == ESP_OK) {
+                        ESP_LOGI(TAG, "Found URL query parameter => y=%s", param);
+                        int y_coord = atoi(param);
+                        if (anchor_id <= 6 && anchor_id > 0) {
+                            app_config.node_positions[anchor_id - 1].x = x_coord;
+                            app_config.node_positions[anchor_id - 1].y = y_coord;
+                            char temp[50];
+                            sprintf(temp, "<p class=\"green\'>Anchor %d adapted</p>", anchor_id);
+                            strcat(read_buf, temp);
+                            save_config();
+                        } else {
+                            strcat(read_buf, "<p class=\"red\">Invallid anchor id</p>");
+                        }
+                    }
+                }
             }
         }
         free(buf);
     }
 		
-	
-		httpd_resp_send_chunk(req, read_buf, strlen(read_buf));
+    httpd_resp_send_chunk(req, read_buf, strlen(read_buf));
 
-		print_main_content(req);
+    print_main_content(req);
 
     // End response
     httpd_resp_send_chunk(req, NULL, 0);
@@ -544,6 +719,13 @@ httpd_uri_t calib = {
     .user_ctx  = NULL
 };
 
+httpd_uri_t config_config = {
+    .uri       = "/config",
+    .method    = HTTP_GET,
+    .handler   = config_handler,
+    .user_ctx  = NULL
+};
+
 httpd_handle_t start_webserver(void)
 {
     httpd_handle_t server = NULL;
@@ -557,6 +739,7 @@ httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &index_uri);
         //httpd_register_uri_handler(server, &favicon);
         httpd_register_uri_handler(server, &calib);
+        httpd_register_uri_handler(server, &config_config);
         return server;
     }
 
