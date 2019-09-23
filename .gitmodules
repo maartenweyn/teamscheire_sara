@@ -1,0 +1,3 @@
+[submodule "esp/lib/esp-adf"]
+	path = esp/lib/esp-adf
+	url = https://github.com/m5stack/esp-adf.git
