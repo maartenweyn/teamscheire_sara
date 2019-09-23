@@ -66,13 +66,17 @@ static esp_periph_set_handle_t set;
 void app_main()
 {
   //event_engine_init();
-  esp_err_t err = nvs_flash_init();
+  esp_err_t err = nvs_flash_init()
+  ;ESP_LOGI(TAG, "nvs_flash_init %x", err);
   if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
       // NVS partition was truncated and needs to be erased
       // Retry nvs_flash_init
       ESP_ERROR_CHECK(nvs_flash_erase());
       err = nvs_flash_init();
+      ESP_LOGI(TAG, "nvs_flash_init %x", err);
   }
+
+  
 
   
 
@@ -97,8 +101,8 @@ void app_main()
   leds_blink(0, 255, 0, 0, 500);
 
 
-  //static httpd_handle_t server = NULL;
-  //initialise_wifi(&server);
+  static httpd_handle_t server = NULL;
+  initialise_wifi(&server);
 
   // uwb_parser_init();   
 
