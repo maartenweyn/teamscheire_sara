@@ -321,6 +321,7 @@ void watch_position( void *pvParameters ){
       receiving_ranges = false;
     } else {
       ESP_LOGI(TAG, "No Ranges");
+      //play_letter('a');
       //leds_setcolor(4, 100, 0, 0);
     }
     
@@ -340,7 +341,7 @@ void locator_task( void *pvParameters ){
 
 
   while(1) {
-    bool got_position = uwb_parser_check_data();
+   bool got_position = uwb_parser_check_data();
   }
 
  }
