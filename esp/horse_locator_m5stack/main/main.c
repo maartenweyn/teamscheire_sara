@@ -115,7 +115,7 @@ void app_main()
 
   //never goto here
   while(1){
-      
+      ESP_LOGI(TAG, "should not be here");
   }
 }
 

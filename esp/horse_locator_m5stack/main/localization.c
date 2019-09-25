@@ -343,6 +343,7 @@ void locator_task( void *pvParameters ){
 
   while(1) {
     //bool got_position = uwb_parser_check_data();
+     vTaskSuspend(NULL);
   }
 
  }

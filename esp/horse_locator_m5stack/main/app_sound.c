@@ -32,9 +32,35 @@ static void esp_audio_state_task (void *para)
     esp_audio_state_t esp_state = {0};
     while (1) {
         xQueueReceive(que, &esp_state, portMAX_DELAY);
-        ESP_LOGI(TAG, "esp_auido status:%x,err:%x\n", esp_state.status, esp_state.err_msg);
+        ESP_LOGI(TAG, "esp_audio status:%x,err:%x\n", esp_state.status, esp_state.err_msg);
     }
     vTaskDelete(NULL);
+}
+
+static int wm8978_sleep() {
+    int res = wm8978_write_reg(1, 0x40);
+    ESP_LOGI(TAG, "wm8978 REG 1: %d 0X%X", res, 0x40);
+
+    res |= wm8978_write_reg(2, 0x0);
+    ESP_LOGI(TAG, "wm8978 REG 2: %d 0X%X", res, 0x0);
+
+    res |= wm8978_write_reg(3, 0x0);
+    ESP_LOGI(TAG, "wm8978 REG 3: %d 0X%X", res, 0x0);
+
+    return res;
+}
+
+static int wm8978_wake() {
+    int res = wm8978_write_reg(1, 0x2B);
+    ESP_LOGI(TAG, "wm8978 REG 1: %d 0X%X", res, 0x2B);
+
+    res |= wm8978_write_reg(2, 0x180);
+    ESP_LOGI(TAG, "wm8978 REG 2: %d 0X%X", res, 0x180);
+
+    res |= wm8978_write_reg(3, 0x6F);
+    ESP_LOGI(TAG, "wm8978 REG 3: %d 0X%X", res, 0x180);
+
+    return res;
 }
 
 audio_err_t esp_player_music_play(const char *url)
@@ -56,7 +82,8 @@ audio_err_t esp_player_music_play(const char *url)
 }
 
 void aplay_raw(char* filename){
-    esp_audio_vol_set(player, 40);
+    //esp_audio_vol_set(player, 40);
+    wm8978_wake();
 	FILE *f= fopen(filename, "r");
 	if (f == NULL) {
 			ESP_LOGE(TAG,"Failed to open file:%s",filename);
@@ -74,7 +101,8 @@ void aplay_raw(char* filename){
 	fclose(f);
 	free(samples_data);
 	f=NULL;
-    esp_audio_vol_set(player, 0);
+    //esp_audio_vol_set(player, 0);
+    wm8978_sleep();
 }
 
 void play_letter(char l) {
@@ -170,7 +198,21 @@ void setup_player(void)
     esp_audio_codec_lib_add(player, AUDIO_CODEC_TYPE_DECODER, wav_decoder_init(&wav_dec_cfg));
 
     // Set default volume
-    esp_audio_vol_set(player, 40);
+    esp_audio_vol_set(player, 20);
     AUDIO_MEM_SHOW(TAG);
     ESP_LOGI(TAG, "esp_audio instance is:%p\r\n", player);
+
+    // set configuration
+    WM8978_Input_Cfg(0,0,0);
+
+    
+
+    uint16_t regval = wm8978_read_reg(1);
+    ESP_LOGI(TAG, "wm8978 REG 1: 0X%X", regval);
+    regval = wm8978_read_reg(2);
+    ESP_LOGI(TAG, "wm8978 REG 2: 0X%X", regval);
+    regval = wm8978_read_reg(3);
+    ESP_LOGI(TAG, "wm8978 REG 3: 0X%X", regval);
+
+    wm8978_sleep();
 }
