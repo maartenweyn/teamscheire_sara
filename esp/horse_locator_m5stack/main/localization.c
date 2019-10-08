@@ -17,35 +17,6 @@
 
 #define TAG "LOCALIZ: "
 
-// letter_position_t letters[NR_OF_LETTERS] = {
-//   //{'A', 100, 0},
-//   {'A', 1000, 0},
-//   {'K', 0, 600},
-//   {'E', 0, 2000}, 
-//   {'H', 0, 3400}, 
-//   {'C', 1000, 4000}, 
-//   {'M', 2000, 3400}, 
-//   {'B', 2000, 2000}, 
-//   {'F', 2000, 600}, 
-//   {'D', 1000, 600}, 
-//   {'X', 1000, 2000}, 
-//   {'G', 1000, 3400}
-// };
-
-// letter_position_t letters[NR_OF_LETTERS] = {
-//   //{'A', 100, 0},
-//   {'A', 1000, 0},
-//   {'K', 0, 600},
-//   {'E', 0, 3000}, 
-//   {'H', 0, 5400}, 
-//   {'C', 1000, 6000}, 
-//   {'M', 2000, 5400}, 
-//   {'B', 2000, 4000}, 
-//   {'F', 2000, 600}, 
-//   {'D', 1000, 600}, 
-//   {'X', 1000, 3000}, 
-//   {'G', 1000, 5400}
-// };
 
 int meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
 int avg_meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
@@ -54,22 +25,6 @@ int meas_counter[6] = {0,0,0,0,0,0};
 
 bool receiving_ranges = false;
 
-
-// calibration_ranges_t calibration_data[] = {
-//     {'H', {0,0,0,0,0,0}, 0},
-//     {'K', {0,0,0,0,0,0}, 0},
-//     {'F', {0,0,0,0,0,0}, 0},
-//     {'M', {0,0,0,0,0,0}, 0},
-//     {'E', {0,0,0,0,0,0}, 0},
-//     {'B', {0,0,0,0,0,0}, 0}};
-
-//= {
-//  {015, 480},
-//  {015, 000},
-//  {1705, 450},
-//  {1705, 030},
-//  {0, 0},
-//  {0, 0}};
 
 position_t current_position;
 
@@ -126,42 +81,11 @@ static bool intersectTwoCircles(position_t p1, int r1, position_t p2, int r2, po
   return true;
 }
 
-bool processMeasurement() {
+bool processMeasurement_intersections() {
   static position_t intersections[30] = {0,};
   static int nr_of_intersections = 0;
   static int intersection_pointer = 0;
   static position_t sum_intersection;
-
-  
-  // Visual Feedback
-  //led_mode != led_mode;
-  //digitalWrite(LED, led_mode);
-
-  // static bool useposition[6] = {false, false, false, false, false, false};
-  // int min_ind[3] = {-1,-1,-1};
-  // int min_range[3] = {INT16_MAX,INT16_MAX,INT16_MAX};
-
-  // for (int i = 0; i < 6; i++)
-  // {
-  //   if (meas_absence_counter[i] < USE_MEASUREMENT_THRESHOLD) {
-  //     if (avg_meas_ranges[i] < min_range[0]) {
-  //       min_range[2] = min_range[1];
-  //       min_ind[2] = min_ind[1];
-  //       min_range[1] = min_range[0];
-  //       min_ind[1] = min_ind[0];
-  //       min_range[0] = avg_meas_ranges[i];
-  //       min_ind[0] = i;
-  //     } else if (avg_meas_ranges[i] < min_range[1]) {
-  //       min_range[2] = min_range[1];
-  //       min_ind[2] = min_ind[1];
-  //       min_range[1] = avg_meas_ranges[i];
-  //       min_ind[1] = i;
-  //     } else if (avg_meas_ranges[i] < min_range[2]) {
-  //       min_range[2] = avg_meas_ranges[i];
-  //       min_ind[2] = i;
-  //     }
-  //   }
-  // }
 
   // Print ranges
   for (int i = 0; i < 6; i++)
@@ -169,22 +93,11 @@ bool processMeasurement() {
     printf("%d\t", avg_meas_ranges[i]);
   }
   printf("\n");
-  // for (int i = 0; i < 6; i++)
-  // {
-  //   printf("%d\t", meas_counter[i]);
-  // }
-  // printf("\n");
   for (int i = 0; i < 6; i++)
   {
     printf("%d\t", meas_absence_counter[i]);
   }
   printf("\n");
-
-  // for (int i = 0; i <= 2; i++)
-  // {
-  //   printf("%d:%d\n", min_ind[i], min_range[i]);
-  // }
-
 
   // Calculate intersections
   nr_of_intersections = 0;
@@ -192,10 +105,6 @@ bool processMeasurement() {
   sum_intersection.x = 0;
   sum_intersection.y = 0;
   
-  //for (int i = 0; i < 2; i++) {
-  //  if (min_ind[i] != -1) {
-  //    for (int j = i + 1; j <= 2; j++) {
-  //      if (min_ind[j] != -1) {
   for (int i = 0; i < 6; i++) {
    if (meas_absence_counter[i] < USE_MEASUREMENT_THRESHOLD) {
      for (int j = i + 1; j <= 6; j++) {
@@ -332,9 +241,12 @@ bool processMeasurement() {
       break;
     }
   }
-
   
   return true;
+}
+
+bool processMeasurement () {
+  
 }
 
 void watch_position( void *pvParameters ){
