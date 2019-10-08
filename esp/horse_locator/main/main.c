@@ -6,7 +6,6 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
-#include "wm8978.h"
 #include "driver/sdmmc_host.h"
 #include "driver/sdmmc_defs.h"
 #include "esp_event_loop.h"
@@ -14,24 +13,29 @@
 #include <sys/socket.h>
 #include "nvs.h"
 #include "nvs_flash.h"
-#include "eth.h"
-#include "event.h"
-#include "wifi.h"
-#include "hal_i2c.h"
-#include "hal_i2s.h"
+#include "driver/dac.h"
+//#include "eth.h"
+///#include "event.h"
+// #include "wifi.h"
+//#include "hal_i2c.h"
+//#include "hal_i2s.h"
 #include "wm8978.h"
 #include "webserver.h"
-#include "http.h"
+// #include "http.h"
 #include "cJSON.h"
-#include "mdns_task.h"
-#include "audio.h"
+// #include "mdns_task.h"
+// #include "audio.h"
 #include <dirent.h>
 #include "esp_heap_caps.h"
-#include "euler.h"
-#include "websocket.h"
+// #include "euler.h"
+// #include "websocket.h"
 #include "esp_heap_caps.h"
-#include "aplay.h"
+// #include "aplay.h"
 #include "esp_task_wdt.h"
+
+#include "board.h"
+
+#include "periph_sdcard.h"
 
 #include "app_sound.h"
 #include "app_config.h"
@@ -39,8 +43,9 @@
 #include "localization.h"
 #include "uwb_parser.h"
 #include "app_leds.h"
+#include "app_power.h"
 
-#include <esp_http_server.h>
+ #include <http_server.h>
 
 
 //#include "web_radio.h"
@@ -56,63 +61,66 @@
 //#define GPIO_OUTPUT_IO_0    5
 //#define GPIO_OUTPUT_PIN_SEL  ((1<<GPIO_OUTPUT_IO_0))
 
+static esp_periph_set_handle_t set;
 
 void app_main()
 {
   //event_engine_init();
-  nvs_flash_init();
+  esp_err_t err = nvs_flash_init()
+  ;ESP_LOGI(TAG, "nvs_flash_init %x", err);
+  if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
+      // NVS partition was truncated and needs to be erased
+      // Retry nvs_flash_init
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      err = nvs_flash_init();
+      ESP_LOGI(TAG, "nvs_flash_init %x", err);
+  }
 
-  /*init gpio*/
-  // gpio_config_t io_conf;
-  // io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
-  // io_conf.mode = GPIO_MODE_OUTPUT;
-  // io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
-  // io_conf.pull_down_en = 0;
-  // io_conf.pull_up_en = 0;
-  // gpio_config(&io_conf);
-  // gpio_set_level(GPIO_OUTPUT_IO_0, 0);
-  /*init codec */
-  hal_i2c_init(0,19,18);
-  hal_i2s_init(0,41000,16,2);
-  WM8978_Init();
-  WM8978_ADDA_Cfg(1,1); 
-  WM8978_Input_Cfg(1,0,0);     
-  WM8978_Output_Cfg(1,0); 
-  WM8978_MIC_Gain(0);
-  WM8978_AUX_Gain(0);
-  WM8978_LINEIN_Gain(0);
-  WM8978_SPKvol_Set(35);
-  WM8978_HPvol_Set(50,50); //0-63
-  WM8978_EQ_3D_Dir(0);
-  WM8978_EQ1_Set(0,24);
-  WM8978_EQ2_Set(0,24);
-  WM8978_EQ3_Set(0,24);
-  WM8978_EQ4_Set(0,24);
-  WM8978_EQ5_Set(0,24);
+  esp_periph_config_t periph_cfg = DEFAULT_ESP_PHERIPH_SET_CONFIG();
+  set = esp_periph_set_init(&periph_cfg);
 
-#ifndef SKIP_SD_CARD
+  ESP_LOGI(TAG, "[ 1 ] Mount sdcard");
+  ESP_LOGI(TAG, "[1.1] Start and wait for SDCARD to mount");
+
+  #ifndef SKIP_SD_CARD
   init_sdcard();
-#endif
+  #endif
 
   load_config();
+
+  ESP_LOGI(TAG, "[ 2 ] Setup Audio");
+
+  setup_player();
+
+  play_letter('a');
+
+  ESP_LOGI(TAG, "[ 3 ] Init leds");
+
+  leds_init();
+  leds_blink(0, 255, 0, 0, 500);
 
 
   static httpd_handle_t server = NULL;
   initialise_wifi(&server);
 
-  //leds_init();
-  uwb_parser_init();   
+  // uwb_parser_init();   
+
+  //disable node speaker
+  // esp_err_t ret = dac_output_voltage(DAC_CHANNEL_1, 0);
+  // ESP_LOGI(TAG, "dac_output_voltage %d", ret);
+
+  ESP_LOGI(TAG, "Battery Level %d", getBatteryLevel());
 
 
   xTaskCreate(locator_task, "locator_task", 4096, NULL, 5, NULL);
-  //xTaskCreatePinnedToCore(locator_task, "locator_task", 4096, NULL, 5, NULL, 1);
-  //xTaskCreate(webserver_task, "webserver_task", 4096, NULL, 10, NULL);
-  //xTaskCreatePinnedToCore(webserver_task, "webserver_task", 4096, NULL, 10, NULL, 0);
+  // //xTaskCreatePinnedToCore(locator_task, "locator_task", 4096, NULL, 5, NULL, 1);
+  // //xTaskCreate(webserver_task, "webserver_task", 4096, NULL, 10, NULL);
+  // //xTaskCreatePinnedToCore(webserver_task, "webserver_task", 4096, NULL, 10, NULL, 0);
   vTaskSuspend(NULL);
 
   //never goto here
   while(1){
-      
+      ESP_LOGI(TAG, "should not be here");
   }
 }
 

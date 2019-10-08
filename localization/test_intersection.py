@@ -1,6 +1,7 @@
 import math
 
 
+
 def intersectTwoCircles(x1,y1,r1, x2,y2,r2) :
   centerdx = x1 - x2
   centerdy = y1 - y2
@@ -35,6 +36,12 @@ def intersectTwoCircles(x1,y1,r1, x2,y2,r2) :
   return [[ix1, iy1], [ix2, iy2]]
 
 
-result = intersectTwoCircles(15, 480, 391, 15, 0, 273)
+#1 - 0,0 - 1950
+#2 - 1925, 0 - 2390
+#2390 - 2
+#1845 - 1
+result = intersectTwoCircles(0, 0, 1950, 1925, 0, 2390)
+
+#result = intersectTwoCircles(15, 480, 391, 15, 0, 273)
 
 print (result); 

@@ -4,14 +4,6 @@
 #
 
 PROJECT_NAME := TEAM_SCHEIRE_HORSE_LOC
-
-CFLAGS+=-DCONFIG_AUDIO_MAD
-
-a:=$(shell pwd)
-b:=$(dir $(patsubst %/,%,$(dir $(a))))
-EXTRA_COMPONENT_DIRS:=$(b)components
-	
-
-include $(IDF_PATH)/make/project.mk
+include $(ADF_PATH)/project.mk
 
 

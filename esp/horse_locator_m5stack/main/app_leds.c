@@ -3,15 +3,18 @@
 #include "esp_timer.h"
 
 #include "esp32_digital_led_lib.h"
+#include "board_pins_config.h"
 
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 
 #define TAG "LEDS"
 
+#ifdef LEDS_PIN
+
 
 static strand_t STRANDS[] = { // Avoid using any of the strapping pins on the ESP32
-  {.rmtChannel = 1, .gpioNum = 15, .ledType = LED_SK6812_V1, .brightLimit = 100, .numPixels =  12,
+  {.rmtChannel = 1, .gpioNum = LEDS_PIN, .ledType = LEDS_TYPE, .brightLimit = 100, .numPixels =  LEDS_NR,
    .pixels = 0, ._stateVars = 0},
 };
 
@@ -34,6 +37,8 @@ static void oneshot_timer_callback(void* arg) {
   ESP_LOGD(TAG, "blinking false");
 }
 
+
+
 static void leds_init_timer() {
   const esp_timer_create_args_t oneshot_timer_args = {
           .callback = &oneshot_timer_callback,
@@ -45,7 +50,6 @@ static void leds_init_timer() {
   ESP_ERROR_CHECK(esp_timer_create(&oneshot_timer_args, &oneshot_timer));
 
 }
-
 void leds_init() {
   if (digitalLeds_initStrands(STRANDS, STRANDCNT)) {
 		ESP_LOGE(TAG, "Init FAILURE: halting");
@@ -53,11 +57,16 @@ void leds_init() {
 	}
 
   leds_init_timer();
+
 }
 
 void leds_setcolor(uint8_t r, uint8_t g, uint8_t b, uint8_t w) {
-  for (uint16_t i = 0; i < STRANDS[0].numPixels; i++) {
+  for (uint16_t i = 0; i < STRANDS[0].numPixels; i+= LEDS_INC) {
+#if LEDS_TYPE <= LED_WS2812BW
+        colTarget[i] = pixelFromRGBW(g, r, b, w);
+#else
         colTarget[i] = pixelFromRGBW(r, g, b, w);
+#endif
     }
     for (uint16_t i = 0; i < STRANDS[0].numPixels; i++) {
 		STRANDS[0].pixels[i] = colTarget[i];
@@ -85,3 +94,17 @@ void leds_blink(uint8_t r, uint8_t g, uint8_t b, uint8_t w, int delay_ms) {
   ESP_LOGD(TAG, "timer started, time since boot: %lld us", esp_timer_get_time());
 
 }
+
+#else
+
+void leds_init() {
+  ESP_LOGE(TAG, "No leds defined"); 
+}
+
+void leds_setcolor(uint8_t r, uint8_t g, uint8_t b, uint8_t w) {};
+
+void leds_blink(uint8_t r, uint8_t g, uint8_t b, uint8_t w, int delay_ms) {};
+
+
+
+#endif

@@ -20,7 +20,11 @@
 #include "main.h"
 
 
+#ifdef  __WM8978_H 
 #include "wm8978.h"
+#else
+#include "es8388.h"
+#endif
 
 #define TAG "APP_SOUND:"
 
@@ -37,31 +41,40 @@ static void esp_audio_state_task (void *para)
     vTaskDelete(NULL);
 }
 
-static int wm8978_sleep() {
-    int res = wm8978_write_reg(1, 0x40);
-    ESP_LOGI(TAG, "wm8978 REG 1: %d 0X%X", res, 0x40);
 
-    res |= wm8978_write_reg(2, 0x0);
-    ESP_LOGI(TAG, "wm8978 REG 2: %d 0X%X", res, 0x0);
 
-    res |= wm8978_write_reg(3, 0x0);
-    ESP_LOGI(TAG, "wm8978 REG 3: %d 0X%X", res, 0x0);
+
+static int audio_mute(bool mute) {
+    int res = 0;
+
+ #ifdef  __WM8978_H    
+    if (mute) {
+        res = wm8978_write_reg(1, 0x40);
+        ESP_LOGD(TAG, "wm8978 REG 1: %d 0X%X", res, 0x40);
+
+        res |= wm8978_write_reg(2, 0x0);
+        ESP_LOGD(TAG, "wm8978 REG 2: %d 0X%X", res, 0x0);
+
+        res |= wm8978_write_reg(3, 0x0);
+        ESP_LOGD(TAG, "wm8978 REG 3: %d 0X%X", res, 0x0);
+    } else {
+        res = wm8978_write_reg(1, 0x2B);
+        ESP_LOGD(TAG, "wm8978 REG 1: %d 0X%X", res, 0x2B);
+
+        res |= wm8978_write_reg(2, 0x180);
+        ESP_LOGD(TAG, "wm8978 REG 2: %d 0X%X", res, 0x180);
+
+        res |= wm8978_write_reg(3, 0x6F);
+        ESP_LOGD(TAG, "wm8978 REG 3: %d 0X%X", res, 0x180);
+    }
+#else
+
+    res = es8388_set_voice_mute(mute);
+#endif
 
     return res;
 }
 
-static int wm8978_wake() {
-    int res = wm8978_write_reg(1, 0x2B);
-    ESP_LOGI(TAG, "wm8978 REG 1: %d 0X%X", res, 0x2B);
-
-    res |= wm8978_write_reg(2, 0x180);
-    ESP_LOGI(TAG, "wm8978 REG 2: %d 0X%X", res, 0x180);
-
-    res |= wm8978_write_reg(3, 0x6F);
-    ESP_LOGI(TAG, "wm8978 REG 3: %d 0X%X", res, 0x180);
-
-    return res;
-}
 
 audio_err_t esp_player_music_play(const char *url)
 {
@@ -83,26 +96,36 @@ audio_err_t esp_player_music_play(const char *url)
 
 void aplay_raw(char* filename){
     //esp_audio_vol_set(player, 40);
-    wm8978_wake();
+    ESP_LOGI(TAG, "aplay_raw wake");
+    audio_mute(false);
+
+    ESP_LOGI(TAG, "aplay_raw open file");
 	FILE *f= fopen(filename, "r");
 	if (f == NULL) {
 			ESP_LOGE(TAG,"Failed to open file:%s",filename);
 			return;
 	}
 	int rlen;
+	int res;
 	char* samples_data = malloc(1024);
     size_t bytes_written = 0;
-	do{
+    ESP_LOGI(TAG, "aplay_raw read file");
+	do {
 		rlen=fread(samples_data,1,1024,f);
+        //ESP_LOGI(TAG, "aplay_raw read %d bytes", rlen);
 		//datalen-=rlen;
 		//hal_i2s_write(0,samples_data,rlen,5000);
-        i2s_write(0, samples_data, rlen, &bytes_written, 5000);
-	} while(rlen>0);
+        res = i2s_write(0, samples_data, rlen, &bytes_written, 1000);
+
+        //ESP_LOGI(TAG, "aplay_raw i2s write %d, %d bytes", res, bytes_written);
+	} while(rlen==1024);
 	fclose(f);
 	free(samples_data);
 	f=NULL;
     //esp_audio_vol_set(player, 0);
-    wm8978_sleep();
+
+    ESP_LOGI(TAG, "aplay_raw sleep");
+    audio_mute(true);
 }
 
 void play_letter(char l) {
@@ -198,11 +221,12 @@ void setup_player(void)
     esp_audio_codec_lib_add(player, AUDIO_CODEC_TYPE_DECODER, wav_decoder_init(&wav_dec_cfg));
 
     // Set default volume
-    esp_audio_vol_set(player, 20);
+    esp_audio_vol_set(player, 60);
     AUDIO_MEM_SHOW(TAG);
     ESP_LOGI(TAG, "esp_audio instance is:%p\r\n", player);
 
     // set configuration
+    #ifdef  __WM8978_H 
     WM8978_Input_Cfg(0,0,0);
 
     
@@ -215,4 +239,5 @@ void setup_player(void)
     ESP_LOGI(TAG, "wm8978 REG 3: 0X%X", regval);
 
     wm8978_sleep();
+    #endif
 }

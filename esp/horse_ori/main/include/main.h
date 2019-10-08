@@ -16,15 +16,6 @@
 
 //#define SKIP_SD_CARD
 
-// SOUND
-#define SOUND_I2C_PORT  1
-#define SOUND_I2C_SDA_PIN 21 //19
-#define SOUND_I2C_SCL_PIN 22 //18
-
-#define CONFIG_I2S_BCK_PIN 5
-#define CONFIG_I2S_WS_PIN 13 
-#define CONFIG_I2S_OUT_PIN 34 
-
 #define NR_OF_LETTERS 15
 
 
@@ -44,7 +35,6 @@ typedef struct {
 
 
 extern int meas_ranges[];
-extern int avg_meas_ranges[];
 extern int meas_counter[];
 extern int meas_absence_counter[];
 

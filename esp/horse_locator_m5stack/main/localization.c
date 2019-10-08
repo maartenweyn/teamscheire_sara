@@ -48,6 +48,7 @@
 // };
 
 int meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
+int avg_meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
 int meas_absence_counter[6] = {100,100,100,100,100,100};
 int meas_counter[6] = {0,0,0,0,0,0};
 
@@ -136,10 +137,36 @@ bool processMeasurement() {
   //led_mode != led_mode;
   //digitalWrite(LED, led_mode);
 
+  // static bool useposition[6] = {false, false, false, false, false, false};
+  // int min_ind[3] = {-1,-1,-1};
+  // int min_range[3] = {INT16_MAX,INT16_MAX,INT16_MAX};
+
+  // for (int i = 0; i < 6; i++)
+  // {
+  //   if (meas_absence_counter[i] < USE_MEASUREMENT_THRESHOLD) {
+  //     if (avg_meas_ranges[i] < min_range[0]) {
+  //       min_range[2] = min_range[1];
+  //       min_ind[2] = min_ind[1];
+  //       min_range[1] = min_range[0];
+  //       min_ind[1] = min_ind[0];
+  //       min_range[0] = avg_meas_ranges[i];
+  //       min_ind[0] = i;
+  //     } else if (avg_meas_ranges[i] < min_range[1]) {
+  //       min_range[2] = min_range[1];
+  //       min_ind[2] = min_ind[1];
+  //       min_range[1] = avg_meas_ranges[i];
+  //       min_ind[1] = i;
+  //     } else if (avg_meas_ranges[i] < min_range[2]) {
+  //       min_range[2] = avg_meas_ranges[i];
+  //       min_ind[2] = i;
+  //     }
+  //   }
+  // }
+
   // Print ranges
   for (int i = 0; i < 6; i++)
   {
-    printf("%d\t", meas_ranges[i]);
+    printf("%d\t", avg_meas_ranges[i]);
   }
   printf("\n");
   // for (int i = 0; i < 6; i++)
@@ -153,6 +180,11 @@ bool processMeasurement() {
   }
   printf("\n");
 
+  // for (int i = 0; i <= 2; i++)
+  // {
+  //   printf("%d:%d\n", min_ind[i], min_range[i]);
+  // }
+
 
   // Calculate intersections
   nr_of_intersections = 0;
@@ -160,14 +192,18 @@ bool processMeasurement() {
   sum_intersection.x = 0;
   sum_intersection.y = 0;
   
-  for (int i = 0; i < 5; i++) {
-    if (meas_absence_counter[i] < USE_MEASUREMENT_THRESHOLD) {
-      for (int j = i + 1; j < 6; j++) {
-        if (meas_absence_counter[j] < USE_MEASUREMENT_THRESHOLD) {
+  //for (int i = 0; i < 2; i++) {
+  //  if (min_ind[i] != -1) {
+  //    for (int j = i + 1; j <= 2; j++) {
+  //      if (min_ind[j] != -1) {
+  for (int i = 0; i < 6; i++) {
+   if (meas_absence_counter[i] < USE_MEASUREMENT_THRESHOLD) {
+     for (int j = i + 1; j <= 6; j++) {
+       if (meas_absence_counter[j] < USE_MEASUREMENT_THRESHOLD) {
           ESP_LOGD(TAG, "find intersection %d, %d:", i, j);
           position_t i1;
           position_t i2;
-          if (intersectTwoCircles(app_config.node_positions[i], meas_ranges[i], app_config.node_positions[j], meas_ranges[j], &i1, &i2)) {
+          if (intersectTwoCircles(app_config.node_positions[i], avg_meas_ranges[i], app_config.node_positions[j], avg_meas_ranges[j], &i1, &i2)) {
             ESP_LOGD(TAG, "intersection: (%d, %d), (%d, %d)", i1.x, i1.y, i2.x, i2.y);
             bool good_intersection = false;
             if (i1.x >= -app_config.field_size_margin && i1.x <= app_config.field_size.x + app_config.field_size_margin
@@ -217,9 +253,9 @@ bool processMeasurement() {
     int min_index = -1;
     for (int i = 0; i < 6; i++) {
       if (meas_absence_counter[i] < USE_MEASUREMENT_THRESHOLD) {
-        if (meas_ranges[i] < min_range)
+        if (avg_meas_ranges[i] < min_range)
         {
-          min_range = meas_ranges[i];
+          min_range = avg_meas_ranges[i];
           min_index = i;
         }
       }
@@ -308,14 +344,19 @@ void watch_position( void *pvParameters ){
         if ((nearby_letter > -1)) {
           play_letter(app_config.letters[nearby_letter].letter);
           ESP_LOGI(TAG, "letter");
+          leds_blink(0, 255, 0, 0, 50);
           //leds_setcolor(4, 100, 100, 100);
+
         } else {
           ESP_LOGI(TAG, "position %d %d, no letter", current_position.x, current_position.y);
           //leds_setcolor(4, 0, 100, 0);
+
+        leds_blink(0, 255, 255, 0, 50);
         }
       } else {
         ESP_LOGI(TAG, "ranges, no position");
         //leds_setcolor(4, 0, 100, 100);
+        leds_blink(0, 0, 255, 0, 50);
       }
 
       receiving_ranges = false;
@@ -339,11 +380,12 @@ void locator_task( void *pvParameters ){
 
 
   //uwb_test_range();
-
+  //bool got_position = uwb_parser_check_data();
 
   while(1) {
     //bool got_position = uwb_parser_check_data();
-     vTaskSuspend(NULL);
+    uwb_parser_check_data();
+    // vTaskSuspend(NULL);
   }
 
  }

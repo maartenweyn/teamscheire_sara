@@ -1,5 +1,0 @@
-
-ifdef CONFIG_FTP_SERVER
-COMPONENT_ADD_INCLUDEDIRS := include
-COMPONENT_OBJS:=ftpd.o
-endif

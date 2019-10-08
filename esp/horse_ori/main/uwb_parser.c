@@ -7,7 +7,6 @@
 
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
-#include "board_pins_config.h"
 
 #define TAG "UWB_PARSER: "
 
@@ -26,13 +25,8 @@ void uwb_parser_init() {
     };
  
   uart_param_config(UART_NUM_2, &uart_config);
-  uart_set_pin(UART_NUM_2, UWB_UART_TX, UWB_UART_RX, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-  esp_err_t res = uart_driver_install(UART_NUM_2, BUF_SIZE * 2, 0, 0, NULL, 0);
-  if (res != 0)
-    ESP_LOGE(TAG, "uart_driver_install error: %d:", res);
-  else
-
-    ESP_LOGI(TAG, "uart_driver_install ok");
+  uart_set_pin(UART_NUM_2, 22, 23, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+  uart_driver_install(UART_NUM_2, BUF_SIZE * 2, 0, 0, NULL, 0);
 }
 
 void readLine(char* line) {
@@ -89,7 +83,7 @@ static bool setRange(int id, int range)
         if (meas_counter[i] > 1)
         {
           ESP_LOGD(TAG, "meas_ranges: %d: %d cm (%d)", i+1, meas_ranges[i], meas_counter[i]);
-          avg_meas_ranges[i] = meas_ranges[i] / meas_counter[i];
+          meas_ranges[i] = meas_ranges[i] / meas_counter[i];
           ESP_LOGD(TAG, " --> %d", meas_ranges[i]);
         }
         meas_counter[i] = 0;
@@ -105,50 +99,50 @@ static bool setRange(int id, int range)
   return got_position;
 }
 
-// void uwb_test_range() {
+void uwb_test_range() {
 
-//   bool got_position =  false;
+  bool got_position =  false;
 
-//   //[-1, -1, 20.84, 0.76, -1, -1]
-//   // got_position = setRange(3, 20840);
-//   // got_position = setRange(4, 760);
-//   // got_position = setRange(3, 20840);
+  //[-1, -1, 20.84, 0.76, -1, -1]
+  // got_position = setRange(3, 20840);
+  // got_position = setRange(4, 760);
+  // got_position = setRange(3, 20840);
 
-//   //[1345, 2479, 5006, 4694, 2429, -1] # r
+  //[1345, 2479, 5006, 4694, 2429, -1] # r
 
-//   // setRange(1, 13450);
-//   // got_position = setRange(2, 24790);
-//   // got_position = setRange(3, 50060);
-//   // got_position = setRange(4, 46940);
-//   // got_position = setRange(5, 24290);
-//   // got_position = setRange(1, 13450);
+  // setRange(1, 13450);
+  // got_position = setRange(2, 24790);
+  // got_position = setRange(3, 50060);
+  // got_position = setRange(4, 46940);
+  // got_position = setRange(5, 24290);
+  // got_position = setRange(1, 13450);
 
-//   //#ranges = [5.32, 20.87, -1, -1, 29.47, -1] # m
+  //#ranges = [5.32, 20.87, -1, -1, 29.47, -1] # m
 
-//   // setRange(1, 5320);
-//   // got_position = setRange(2, 20870);
-//   // meas_counter[3-1] = 100;
-//   // meas_counter[4-1] = 100;
-//   // got_position = setRange(5, 29470);
-//   // got_position = setRange(1, 5320);
+  // setRange(1, 5320);
+  // got_position = setRange(2, 20870);
+  // meas_counter[3-1] = 100;
+  // meas_counter[4-1] = 100;
+  // got_position = setRange(5, 29470);
+  // got_position = setRange(1, 5320);
 
-//   //#ranges = [9.02, 11.60, 60.38, 60.89, 29.38] # c
-//   setRange(1, 9020);
-//   got_position = setRange(2, 11600);
-//   got_position = setRange(3, 60380);
-//   got_position = setRange(4, 60380);
-//   got_position = setRange(5, 29380);
-//   got_position = setRange(1, 9020);
+  //#ranges = [9.02, 11.60, 60.38, 60.89, 29.38] # c
+  setRange(1, 9020);
+  got_position = setRange(2, 11600);
+  got_position = setRange(3, 60380);
+  got_position = setRange(4, 60380);
+  got_position = setRange(5, 29380);
+  got_position = setRange(1, 9020);
 
 
-//   //#ranges = [28.52, -1, 34.39, 34.39, 11.39] # x
-//   setRange(1, 28250);
-//   meas_counter[2-1] = 100;
-//   got_position = setRange(3, 34390);
-//   got_position = setRange(4, 34390);
-//   got_position = setRange(5, 11390);
-//   got_position = setRange(1, 28250);
-// }
+  //#ranges = [28.52, -1, 34.39, 34.39, 11.39] # x
+  setRange(1, 28250);
+  meas_counter[2-1] = 100;
+  got_position = setRange(3, 34390);
+  got_position = setRange(4, 34390);
+  got_position = setRange(5, 11390);
+  got_position = setRange(1, 28250);
+}
 
  bool uwb_parser_check_data() {
   static int counter = 0;

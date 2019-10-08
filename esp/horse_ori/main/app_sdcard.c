@@ -5,27 +5,20 @@
 #include "esp_log.h"
 #include "sdmmc_cmd.h"
 #include "esp_vfs_fat.h"
-#include "board_pins_config.h"
-
-#include "periph_sdcard.h"
 
 
 #define TAG "APP_SDCARD:"
-
-extern esp_periph_set_handle_t set;
 
 esp_err_t init_sdcard() {
   ESP_LOGI(TAG, "Initializing SD card");
   ESP_LOGI(TAG, "Using SPI peripheral");
 
-#ifdef SDCARD_USE_SPI  
-
   sdmmc_host_t host = SDSPI_HOST_DEFAULT();
   sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
-  slot_config.gpio_miso = SD_PIN_NUM_MISO;
-  slot_config.gpio_mosi = SD_PIN_NUM_MOSI;
-  slot_config.gpio_sck  = SD_PIN_NUM_CLK;
-  slot_config.gpio_cs   = SD_PIN_NUM_CS;
+  slot_config.gpio_miso = PIN_NUM_MISO;
+  slot_config.gpio_mosi = PIN_NUM_MOSI;
+  slot_config.gpio_sck  = PIN_NUM_CLK;
+  slot_config.gpio_cs   = PIN_NUM_CS;
 
 
   // Options for mounting the filesystem.
@@ -64,23 +57,6 @@ esp_err_t init_sdcard() {
       return ESP_OK;
     }
   }
-
-#else
-    // Initialize SD Card peripheral
-    periph_sdcard_cfg_t sdcard_cfg = {
-        .root = "/sdcard",
-        .card_detect_pin = get_sdcard_intr_gpio(), //GPIO_NUM_34
-    };
-    esp_periph_handle_t sdcard_handle = periph_sdcard_init(&sdcard_cfg);
-    // Start sdcard & button peripheral
-    esp_periph_start(set, sdcard_handle);
-
-    // Wait until sdcard is mounted
-    while (!periph_sdcard_is_mounted(sdcard_handle)) {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-    }
-
-#endif
 
 
   return ESP_FAIL;

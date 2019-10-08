@@ -3,6 +3,5 @@
 
 
 void play_letter(char l);
-void setup_player(void);
 
 #endif
