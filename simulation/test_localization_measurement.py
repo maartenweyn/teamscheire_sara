@@ -90,7 +90,7 @@ colors = {
   3 : [0.8, 0, 0], 
   4 : [0.5, 0.5, 0], 
   5 : [0.5, 0.5, 0.5], 
- 6 : [0.5, 0.5, 1.0]}
+  6 : [0.5, 0.5, 1.0]}
 
 
 # x1,y1 is the center of the first circle, with radius r1
