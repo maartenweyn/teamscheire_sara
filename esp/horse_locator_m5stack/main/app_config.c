@@ -109,6 +109,25 @@ esp_err_t save_config() {
       cJSON_AddItemToObject(letter, "letter", letter_char);
   }
 
+  // PARTICLE FILTEr
+  cJSON *nr_of_particles = cJSON_CreateNumber(app_config.particle_filter.nr_of_particles);
+  if (nr_of_particles == NULL) goto end;
+  cJSON_AddItemToObject(config, "nr_of_particles", nr_of_particles);
+
+  cJSON *max_speed = cJSON_CreateNumber(app_config.particle_filter.max_speed);
+  if (max_speed == NULL) goto end;
+  cJSON_AddItemToObject(config, "max_speed", max_speed);
+  
+  cJSON *UWB_std2 = cJSON_CreateNumber(app_config.particle_filter.UWB_std2);
+  if (UWB_std2 == NULL) goto end;
+  cJSON_AddItemToObject(config, "UWB_std2", UWB_std2);
+
+  cJSON *std_min_threshold = cJSON_CreateNumber(app_config.particle_filter.std_min_threshold);
+  if (std_min_threshold == NULL) goto end;
+  cJSON_AddItemToObject(config, "std_min_threshold", std_min_threshold);
+
+
+
   char *string = cJSON_Print(config);
 
   ESP_LOGI(TAG, "Opening file %s", CONFIG_FILE);
@@ -253,6 +272,42 @@ esp_err_t load_config() {
 
         ESP_LOGI(TAG, "letter %c: %d, %d", app_config.letters[counter].letter,  app_config.letters[counter].x,  app_config.letters[counter].y);
         counter++;
+    }
+
+    const cJSON *nr_of_particles = cJSON_GetObjectItemCaseSensitive(json, "nr_of_particles");
+    if (cJSON_IsNumber(nr_of_particles))
+    {
+      ESP_LOGI(TAG, "nr_of_particles %d", nr_of_particles->valueint);
+      app_config.particle_filter.nr_of_particles =  nr_of_particles->valueint;
+    } else {
+      app_config.particle_filter.nr_of_particles =  DEF_NR_OF_PARTICLES;
+    }
+
+    const cJSON *max_speed = cJSON_GetObjectItemCaseSensitive(json, "max_speed");
+    if (cJSON_IsNumber(max_speed))
+    {
+      ESP_LOGI(TAG, "max_speed %d", nr_of_particles->valueint);
+      app_config.particle_filter.max_speed =  nr_of_particles->valueint;
+    } else {
+      app_config.particle_filter.max_speed =  DEF_MAX_SPEED;
+    }
+
+    const cJSON *UWB_std2 = cJSON_GetObjectItemCaseSensitive(json, "UWB_std2");
+    if (cJSON_IsNumber(UWB_std2))
+    {
+      ESP_LOGI(TAG, "UWB_std2 %d", UWB_std2->valueint);
+      app_config.particle_filter.UWB_std2 =  UWB_std2->valueint;
+    } else {
+      app_config.particle_filter.UWB_std2 =  DEF_UWB_STD2;
+    }
+
+    const cJSON *std_min_threshold = cJSON_GetObjectItemCaseSensitive(json, "std_min_threshold");
+    if (cJSON_IsNumber(std_min_threshold))
+    {
+      ESP_LOGI(TAG, "std_min_threshold %d", std_min_threshold->valueint);
+      app_config.particle_filter.std_min_threshold =  std_min_threshold->valueint;
+    } else {
+      app_config.particle_filter.std_min_threshold =  DEF_STD_THRESH;
     }
 
     fclose(f);

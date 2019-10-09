@@ -1,7 +1,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-
+#include <stdbool.h>
 
 #define ALLOW_DELAY   5
 #define MEAS_AVERAGE  4
@@ -37,6 +37,12 @@ typedef struct {
 } position_t;
 
 typedef struct {
+   position_t pos;
+   position_t std;
+   bool is_valid;
+} localization_result_t;
+
+typedef struct {
   char letter;
   int x;
   int y;
@@ -48,6 +54,6 @@ extern int avg_meas_ranges[];
 extern int meas_counter[];
 extern int meas_absence_counter[];
 
-extern position_t current_position;
+extern localization_result_t current_position;
 
 #endif

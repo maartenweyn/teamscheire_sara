@@ -122,6 +122,8 @@ void app_main()
   static httpd_handle_t server = NULL;
   initialise_wifi(&server);
 
+  initialize_localization_engine();
+
   uwb_parser_init();   
 
   //disable node speaker

@@ -106,7 +106,7 @@ void aplay_raw(char* filename){
 			return;
 	}
 	int rlen;
-	int res;
+	//int res;
 	char* samples_data = malloc(1024);
     size_t bytes_written = 0;
     ESP_LOGI(TAG, "aplay_raw read file");
@@ -115,7 +115,8 @@ void aplay_raw(char* filename){
         //ESP_LOGI(TAG, "aplay_raw read %d bytes", rlen);
 		//datalen-=rlen;
 		//hal_i2s_write(0,samples_data,rlen,5000);
-        res = i2s_write(0, samples_data, rlen, &bytes_written, 1000);
+        //res = 
+        i2s_write(0, samples_data, rlen, &bytes_written, 1000);
 
         //ESP_LOGI(TAG, "aplay_raw i2s write %d, %d bytes", res, bytes_written);
 	} while(rlen==1024);

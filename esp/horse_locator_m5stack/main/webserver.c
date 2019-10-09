@@ -100,7 +100,7 @@ void print_main_content(httpd_req_t *req) {
 		strcat(read_buf, "</ul>");
 
 		strcat(read_buf, "<h2>Position</h2>");
-		sprintf(temp, "<p>Position: (%d, %d)<br>Delay: %d</p>",  current_position.x, current_position.y, last_position_counter);
+		sprintf(temp, "<p>Position: (%d, %d) std (%d, %d), valid %d<br>Delay: %d</p>",  current_position.pos.x, current_position.pos.y, current_position.std.x, current_position.std.y, current_position.is_valid, last_position_counter);
 		strcat(read_buf, temp);
 
 		if (nearby_letter ==  -1) 
@@ -171,6 +171,25 @@ void print_config_content(httpd_req_t *req) {
 		}
 
         strcat(read_buf, "<br><br>");
+        strcat(read_buf, "Nr of Particles :<br>");
+        sprintf(temp, "<input type=\"text\" name=\"nr_of_particles\" value=\"%d\">", app_config.particle_filter.nr_of_particles);
+        strcat(read_buf, temp);
+        strcat(read_buf, "<br>");
+        strcat(read_buf, "Max Speed (cm/s):<br>");
+        sprintf(temp, "<input type=\"text\" name=\"max_speed\" value=\"%d\">", app_config.particle_filter.max_speed);
+        strcat(read_buf, temp);
+        strcat(read_buf, "<br>");
+        strcat(read_buf, "UWB std **2:<br>");
+        sprintf(temp, "<input type=\"text\" name=\"UWB_std2\" value=\"%d\">", app_config.particle_filter.UWB_std2);
+        strcat(read_buf, temp);
+        strcat(read_buf, "<br>");
+        strcat(read_buf, "std min_threshold<br>");
+        sprintf(temp, "<input type=\"text\" name=\"std_min_threshold\" value=\"%d\">", app_config.particle_filter.std_min_threshold);
+        strcat(read_buf, temp);
+        strcat(read_buf, "<br>");
+
+
+
         strcat(read_buf, "<input type=\"submit\" value=\"Submit\">");
         strcat(read_buf, "</form>");
 		strcat(read_buf, "</body></html>");
@@ -332,6 +351,34 @@ esp_err_t config_handler(httpd_req_t *req)
                     app_config.letters[i].y = atoi(param);
                     safe_config = true;
                 }
+            }
+
+            //nr_of_particles
+            if (httpd_query_key_value(buf, "nr_of_particles", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query nr_of_particles => %s=%s", "nr_of_particles", param);
+                app_config.particle_filter.nr_of_particles = atoi(param);
+                safe_config = true;
+            }
+
+            //max_speed
+            if (httpd_query_key_value(buf, "max_speed", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "max_speed", param);
+                app_config.particle_filter.max_speed = atoi(param);
+                safe_config = true;
+            }
+
+            //UWB_std2
+            if (httpd_query_key_value(buf, "UWB_std2", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "UWB_std2", param);
+                app_config.particle_filter.UWB_std2 = atoi(param);
+                safe_config = true;
+            }
+
+            //std_min_threshold
+            if (httpd_query_key_value(buf, "std_min_threshold", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "std_min_threshold", param);
+                app_config.particle_filter.std_min_threshold = atoi(param);
+                safe_config = true;
             }
             
             if (safe_config) save_config();

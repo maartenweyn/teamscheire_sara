@@ -5,6 +5,7 @@
 
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef struct {
   char letter;
@@ -12,15 +13,25 @@ typedef struct {
   int count;
 } calibration_ranges_t;
 
+typedef struct {
+   int16_t x;
+   int16_t y;
+   int16_t speed; //cm/s
+   double direction; // radians
+   float weight;
+} particle_t;
 
 
-extern position_t current_position;
+
+
+extern localization_result_t current_position;
 extern int connected_anchors;
 extern int last_position_counter;
 extern int nearby_letter;
 extern bool receiving_ranges;
 
 bool processMeasurement();
+void initialize_localization_engine();
 void setCalibration(char letter);
 
 void locator_task( void *pvParameters );
