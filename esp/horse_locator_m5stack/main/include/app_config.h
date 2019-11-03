@@ -8,10 +8,10 @@
 #define DEF_FIELD_SIZE_X      2000
 #define DEF_FIELD_SIZE_Y      6000
 #define DEF_FIELD_SIZE_MARGIN 400
-#define DEF_NR_OF_PARTICLES   100
+#define DEF_NR_OF_PARTICLES   500
 #define DEF_MAX_SPEED         200
 #define DEF_UWB_STD2          2500
-#define DEF_STD_THRESH          400
+#define DEF_STD_THRESH        400
 
 typedef struct {
   int nr_of_particles;

@@ -62,12 +62,12 @@ static bool setRange(int id, int range)
 
   bool got_position = false;
   
-  if (meas_counter[id-1] == 0)  
+  //if (meas_counter[id-1] == 0)  
     meas_ranges[id-1] = range / 10;
-  else 
-    meas_ranges[id-1] += (range / 10);
+  //else 
+  //  meas_ranges[id-1] += (range / 10);
 
-  meas_counter[id-1]++;
+  //meas_counter[id-1]++;
 
   for (int i = 0; i < 6; i++)
   {
@@ -81,23 +81,23 @@ static bool setRange(int id, int range)
   }
 
   if (id <= last_id) { 
-    iteration++;
-    if (iteration >= MEAS_AVERAGE)
-    {
-      iteration = 0;
-      for (int i = 0; i < 6; i++) {
-        if (meas_counter[i] > 1)
-        {
-          ESP_LOGD(TAG, "meas_ranges: %d: %d cm (%d)", i+1, meas_ranges[i], meas_counter[i]);
-          avg_meas_ranges[i] = meas_ranges[i] / meas_counter[i];
-          ESP_LOGD(TAG, " --> %d", meas_ranges[i]);
-        }
-        meas_counter[i] = 0;
+    //iteration++;
+    // if (iteration >= MEAS_AVERAGE)
+    // {
+    //   iteration = 0;
+    //   for (int i = 0; i < 6; i++) {
+    //     if (meas_counter[i] > 1)
+    //     {
+    //       ESP_LOGD(TAG, "meas_ranges: %d: %d cm (%d)", i+1, meas_ranges[i], meas_counter[i]);
+    //       avg_meas_ranges[i] = meas_ranges[i] / meas_counter[i];
+    //       ESP_LOGD(TAG, " --> %d", meas_ranges[i]);
+    //     }
+    //     meas_counter[i] = 0;
 
-      }
+    //   }
 
       got_position = processMeasurement(); 
-    } 
+    //} 
   }
 
   last_id = id;

@@ -13,16 +13,18 @@
 #include <math.h>
 #include <string.h>
 
-#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 
 #define TAG "LOCALIZ: "
 
 #define M_PI 3.14159265358979323846
+#define RESAMPLE_PERC 0.95
+#define DEFAULT_WEIGHT 0.00001
 
 
 int meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
-int avg_meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
+//int avg_meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
 int meas_absence_counter[6] = {100,100,100,100,100,100};
 int meas_counter[6] = {0,0,0,0,0,0};
 
@@ -60,7 +62,7 @@ static void init_particles() {
     particles[i].direction =  (((double)rand())/RAND_MAX) * 2 * M_PI;//float in range 0 to 2 PI
     particles[i].weight = 1.0 / app_config.particle_filter.nr_of_particles;
 
-    //ESP_LOGD(TAG, "init (%d, %d) (%d, %f) %f", particles[i].x, particles[i].y, particles[i].speed, particles[i].direction, particles[i].weight);
+    ESP_LOGD(TAG, "init %d (%d, %d) (%d, %f) %f", i, particles[i].x, particles[i].y, particles[i].speed, particles[i].direction, particles[i].weight);
 
 
   }
@@ -71,8 +73,8 @@ static void update_weights() {
   double weight_sum = 0.0;
 
   for (int i = 0; i < app_config.particle_filter.nr_of_particles; i++) {
-    if ((particles[i].x < app_config.field_size_margin) || 
-      (particles[i].y < app_config.field_size_margin) || 
+    if ((particles[i].x < -app_config.field_size_margin) || 
+      (particles[i].y < -app_config.field_size_margin) || 
       (particles[i].x > app_config.field_size.x + app_config.field_size_margin) ||
       (particles[i].y > app_config.field_size.y + app_config.field_size_margin)) {
         particles[i].weight = 0.0;
@@ -85,11 +87,11 @@ static void update_weights() {
       if (meas_absence_counter[j] < USE_MEASUREMENT_THRESHOLD) {
         int dx = app_config.node_positions[j].x - particles[i].x;
         int dy = app_config.node_positions[j].y - particles[i].y;
-        double R = sqrt(dx * dx + dy * dy) - avg_meas_ranges[j];
-        float w = 0.001 + exp(-0.5 * (R*R) / app_config.particle_filter.UWB_std2);
+        double R = sqrt(dx * dx + dy * dy) - meas_ranges[j];
+        float w = DEFAULT_WEIGHT + exp(-0.5 * (R*R) / app_config.particle_filter.UWB_std2);
         particles[i].weight *= w;
 
-        //ESP_LOGD(TAG, "(%d, %d) vs  %d (r=%d)->  R=%f (%f): w=%f, pw=%.20f", particles[i].x, particles[i].y, j, avg_meas_ranges[j], sqrt(dx * dx + dy * dy), R, w, particles[i].weight);
+        ESP_LOGD(TAG, "(%d, %d) vs  %d (r=%d)->  R=%f (%f): w=%f, pw=%.20f", particles[i].x, particles[i].y, j, meas_ranges[j], sqrt(dx * dx + dy * dy), R, w, particles[i].weight);
       }
     }
 
@@ -109,7 +111,7 @@ static void update_weights() {
   for (int i = 0; i < app_config.particle_filter.nr_of_particles; i++) {
     particles[i].weight /= weight_sum;
 
-    //ESP_LOGD(TAG, "update (%d, %d) (%d, %f) %.20f", particles[i].x, particles[i].y, particles[i].speed, particles[i].direction, particles[i].weight);
+    ESP_LOGD(TAG, "update %d (%d, %d) (%d, %f) %.20f", i, particles[i].x, particles[i].y, particles[i].speed, particles[i].direction, particles[i].weight);
 
   }
 
@@ -165,7 +167,7 @@ static void resample() {
       avg_particles[2] += new_particles[i].weight * (new_particles[i].x - avg_particles[0]) * (new_particles[i].x - avg_particles[0]);
       avg_particles[3] += new_particles[i].weight * (new_particles[i].y - avg_particles[1]) *(new_particles[i].y - avg_particles[1]);
   
-      ESP_LOGD(TAG, "resample (%d, %d) (%d, %f) %.20f", new_particles[i].x, new_particles[i].y, new_particles[i].speed, new_particles[i].direction, new_particles[i].weight);
+      ESP_LOGD(TAG, "resample %d (%d, %d) (%d, %f) %.20f", i, new_particles[i].x, new_particles[i].y, new_particles[i].speed, new_particles[i].direction, new_particles[i].weight);
 
   }
 
@@ -208,7 +210,7 @@ static void predict(double delta_t_sec) {
     else if (particles[i].direction  > M_PI * 2)
       particles[i].direction -= M_PI * 2;
 
-    //ESP_LOGD(TAG, "predict (%d, %d) (%d, %f) %f", particles[i].x, particles[i].y, particles[i].speed, particles[i].direction, particles[i].weight);
+    ESP_LOGD(TAG, "predict %d (%d, %d) (%d, %f) %f", i, particles[i].x, particles[i].y, particles[i].speed, particles[i].direction, particles[i].weight);
 
   }
 }
@@ -270,7 +272,7 @@ bool processMeasurement_intersections() {
   // Print ranges
   for (int i = 0; i < 6; i++)
   {
-    printf("%d\t", avg_meas_ranges[i]);
+    printf("%d\t", meas_ranges[i]);
   }
   printf("\n");
   for (int i = 0; i < 6; i++)
@@ -292,7 +294,7 @@ bool processMeasurement_intersections() {
           ESP_LOGD(TAG, "find intersection %d, %d:", i, j);
           position_t i1;
           position_t i2;
-          if (intersectTwoCircles(app_config.node_positions[i], avg_meas_ranges[i], app_config.node_positions[j], avg_meas_ranges[j], &i1, &i2)) {
+          if (intersectTwoCircles(app_config.node_positions[i], meas_ranges[i], app_config.node_positions[j], meas_ranges[j], &i1, &i2)) {
             ESP_LOGD(TAG, "intersection: (%d, %d), (%d, %d)", i1.x, i1.y, i2.x, i2.y);
             bool good_intersection = false;
             if (i1.x >= -app_config.field_size_margin && i1.x <= app_config.field_size.x + app_config.field_size_margin
@@ -342,9 +344,9 @@ bool processMeasurement_intersections() {
     int min_index = -1;
     for (int i = 0; i < 6; i++) {
       if (meas_absence_counter[i] < USE_MEASUREMENT_THRESHOLD) {
-        if (avg_meas_ranges[i] < min_range)
+        if (meas_ranges[i] < min_range)
         {
-          min_range = avg_meas_ranges[i];
+          min_range = meas_ranges[i];
           min_index = i;
         }
       }
@@ -429,7 +431,7 @@ bool processMeasurement () {
   // Print ranges
   for (int i = 0; i < 6; i++)
   {
-    printf("%d\t", avg_meas_ranges[i]);
+    printf("%d\t", meas_ranges[i]);
   }
   printf("\n");
   for (int i = 0; i < 6; i++)
@@ -475,6 +477,8 @@ void watch_position( void *pvParameters ){
   while(1) {
     if (receiving_ranges) {
       if ((last_position_counter < ALLOW_DELAY)) {
+        ESP_LOGI(TAG, "current_position: (%d, %d) std (%d, %d), valid: %d, counter %d", current_position.pos.x, current_position.pos.y, current_position.std.x, current_position.std.y, current_position.is_valid, last_position_counter);
+
         if ((nearby_letter > -1)) {
           play_letter(app_config.letters[nearby_letter].letter);
           ESP_LOGI(TAG, "letter");
@@ -512,15 +516,31 @@ void uwb_test_range() {
   //int ranges[6] = {1639, 102, 3558, 3614, 2171, 1692};
   //int ranges[6] = {314, -1, 3965, -1, 1542, 2365};  
   //int ranges[6] = {1134, -1, -1, -1, 1865, -1};
-  int ranges[6] = {631, -1, 3910, 3517, 1764, 2214};  
-  int counter[6] = {10,100,10,00,10,10};
+  //int ranges[6] = {631, 102, 3910, 3517, 1764, 2214}; 
+  int ranges[6] = {100, -1, -1, -1, -1, -1};  
+  int counter[6] = {0,15,14,13,12,11};
 
-  memcpy(avg_meas_ranges, ranges, sizeof(ranges));
+  memcpy(meas_ranges, ranges, sizeof(ranges));
   memcpy(meas_absence_counter, counter, sizeof(ranges));
 
+
+  uint32_t ts = xTaskGetTickCount();
   processMeasurement();
-  processMeasurement();
-  processMeasurement();
+
+  ESP_LOGI(TAG, "PF precessing %d ms", xTaskGetTickCount() - ts);
+  ESP_LOGI(TAG, "current_position: (%d, %d) std (%d, %d), valid: %d, counter %d", current_position.pos.x, current_position.pos.y, current_position.std.x, current_position.std.y, current_position.is_valid, last_position_counter);
+
+
+  ts = xTaskGetTickCount();
+  processMeasurement();  
+  ESP_LOGI(TAG, "PF precessing %d ms", xTaskGetTickCount() - ts);
+  ESP_LOGI(TAG, "current_position: (%d, %d) std (%d, %d), valid: %d, counter %d", current_position.pos.x, current_position.pos.y, current_position.std.x, current_position.std.y, current_position.is_valid, last_position_counter);
+
+  ts = xTaskGetTickCount();
+  processMeasurement();  
+  ESP_LOGI(TAG, "PF precessing %d ms", xTaskGetTickCount() - ts);
+  ESP_LOGI(TAG, "current_position: (%d, %d) std (%d, %d), valid: %d, counter %d", current_position.pos.x, current_position.pos.y, current_position.std.x, current_position.std.y, current_position.is_valid, last_position_counter);
+
 }
 
 void locator_task( void *pvParameters ){
@@ -529,7 +549,7 @@ void locator_task( void *pvParameters ){
   xTaskCreatePinnedToCore(watch_position, "watch_position", 4096, NULL, 20, NULL, 1);
 
 
-  uwb_test_range();
+  //uwb_test_range();
   //bool got_position = uwb_parser_check_data();
 
   while(1) {

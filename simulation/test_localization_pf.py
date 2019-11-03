@@ -112,10 +112,11 @@ path = [[10, 20], #X
 
 #print(full_path)
 counter = 0
-#ranges = [1639, 102, 3558, 3614, 2171, 1692] # ('POSITION', [1551.76292120504, 64.32657013047535, 18.86662257100413, 21.16800102128328])
+ranges = [1639, 102, 3558, 3614, 2171, 1692] # ('POSITION', [1551.76292120504, 64.32657013047535, 18.86662257100413, 21.16800102128328])
 #ranges = [314, -1, 3965, -1, 1542, 2365] # -> ('POSITION', [1306.951920952366, 2057.5606398480504, 861.9465468528498, 1477.9641095034224])
-ranges = [1134, -1, -1, -1, 1865, -1] #('POSITION', [289.031039843037, 1061.864161891347, 32.11865456078246, 14.433873809155772])
-ranges = [631, -1, 3910, 3517, 1764, 2214]
+#ranges = [1134, -1, -1, -1, 1865, -1] #('POSITION', [289.031039843037, 1061.864161891347, 32.11865456078246, 14.433873809155772])
+#ranges = [631, -1, 3910, 3517, 1764, 2214] #('POSITION', [684.4298339271152, 16.019324920715782, 11.369341216602297, 11.05106353718572])
+#ranges = [100, -1, -1, -1, -1, -1]
 
 circle_ranges = []
 
@@ -128,7 +129,7 @@ circle_ranges = []
 # }
 
 particles = []
-nr_of_particles = 500
+nr_of_particles = 100
 
 particle_patches = []
 
@@ -183,13 +184,13 @@ def update_weights():
 
   # Update weights based on measurements
   for particle in particles:
-    particle[4] = 1.0
 
     if (particle[0] < -field_size_marging) or (particle[1] < -field_size_marging) or (particle[0] > field[0] + field_size_marging) or (particle[1] >  field[1] + field_size_marging): 
         particle[4] = 0
         print('out', particle)
         continue
 
+    particle[4] = 1.0
     for i in range(6):
       if (ranges[i] >= 0):
 
@@ -224,9 +225,12 @@ def resample(particles):
   i = 0
   for  i in range(nr_of_particles):
     position = (random.random() + i) / nr_of_particles
+    #print("pos < cumsum?", position, cum_sum)
     while position >= cum_sum:
       cum_sum_index+=1
       cum_sum += particles[cum_sum_index][4]
+
+      #print("cumsum %d: %.20f", cum_sum_index, cum_sum)
     
     new_particles.append(deepcopy(particles[cum_sum_index]))  
     avg_particles[0] += particles[cum_sum_index][0] * particles[cum_sum_index][4]
@@ -234,8 +238,12 @@ def resample(particles):
     cum_weight_seleted += particles[cum_sum_index][4]
     print(particles[cum_sum_index])
 
+  print("total %.20f %.20f", avg_particles[0], avg_particles[1])
+
   avg_particles[0] /= cum_weight_seleted
   avg_particles[1] /= cum_weight_seleted
+
+  print("avg %.20f %.20f", avg_particles[0], avg_particles[1])
 
   std_x = 0.0
   std_y = 0.0

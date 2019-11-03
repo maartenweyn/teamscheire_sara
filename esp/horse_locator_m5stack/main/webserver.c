@@ -92,7 +92,7 @@ void print_main_content(httpd_req_t *req) {
 		strcat(read_buf, "<ul>");
 		for (int i = 0; i < 6; i++) {
 			if (meas_absence_counter[i] < USE_MEASUREMENT_THRESHOLD)
-				sprintf(temp, "<li class=\"green\">Anchor %d (%d, %d): %d cm</li>", i+1, app_config.node_positions[i].x, app_config.node_positions[i].y, avg_meas_ranges[i]);
+				sprintf(temp, "<li class=\"green\">Anchor %d (%d, %d): %d cm</li>", i+1, app_config.node_positions[i].x, app_config.node_positions[i].y, meas_ranges[i]);
 			else
 				sprintf(temp, "<li class=\"red\">Anchor %d (%d, %d)</li>", i+1, app_config.node_positions[i].x, app_config.node_positions[i].y);
 			strcat(read_buf, temp);

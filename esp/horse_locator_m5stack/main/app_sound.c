@@ -222,7 +222,7 @@ void setup_player(void)
     esp_audio_codec_lib_add(player, AUDIO_CODEC_TYPE_DECODER, wav_decoder_init(&wav_dec_cfg));
 
     // Set default volume
-    esp_audio_vol_set(player, 60);
+    esp_audio_vol_set(player, 100);
     AUDIO_MEM_SHOW(TAG);
     ESP_LOGI(TAG, "esp_audio instance is:%p\r\n", player);
 

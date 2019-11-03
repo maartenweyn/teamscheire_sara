@@ -6,7 +6,7 @@
 #define ALLOW_DELAY   5
 #define MEAS_AVERAGE  4
 
-#define USE_MEASUREMENT_THRESHOLD MEAS_AVERAGE * 6 //4 * 6 (can miss MEAS_AVERAGE cycles)
+#define USE_MEASUREMENT_THRESHOLD 6 //MEAS_AVERAGE * 6 //4 * 6 (can miss MEAS_AVERAGE cycles)
 
 //SDCARD
 #define PIN_NUM_MISO 2
@@ -50,7 +50,7 @@ typedef struct {
 
 
 extern int meas_ranges[];
-extern int avg_meas_ranges[];
+//xtern int avg_meas_ranges[];
 extern int meas_counter[];
 extern int meas_absence_counter[];
 
