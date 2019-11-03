@@ -12,6 +12,8 @@
 #define DEF_MAX_SPEED         200
 #define DEF_UWB_STD2          2500
 #define DEF_STD_THRESH        400
+#define DEF_SENSOR_HEIGHT     250
+#define DEF_NODE_HEIGHT       100
 
 typedef struct {
   int nr_of_particles;
@@ -25,6 +27,7 @@ typedef struct {
  char wifi_passwd[20];
  position_t node_positions[6];
  int nearby_threshold;
+ int sensor_height;
  position_t field_size;
  int field_size_margin;
  letter_position_t letters[NR_OF_LETTERS];

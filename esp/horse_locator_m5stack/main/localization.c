@@ -367,7 +367,7 @@ bool processMeasurement_intersections() {
     }
   } else {
   
-    position_t avg_intersection = {sum_intersection.x / nr_of_intersections, sum_intersection.y / nr_of_intersections};
+    position_t avg_intersection = {sum_intersection.x / nr_of_intersections, sum_intersection.y / nr_of_intersections, 0};
     sum_intersection.x = 0;
     sum_intersection.y = 0;
 

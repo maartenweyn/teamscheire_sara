@@ -18,6 +18,7 @@ void create_default_config() {
   {
     app_config.node_positions[index].x = -1;
     app_config.node_positions[index].y = -1;
+    app_config.node_positions[index].y = 100;
   }  
 }
 
@@ -25,6 +26,7 @@ void create_default_config() {
 esp_err_t save_config() {
   cJSON *x = NULL;
   cJSON *y = NULL;
+  cJSON *z = NULL;
   cJSON *position = NULL;
   cJSON *letter = NULL;
   cJSON *letter_char = NULL;
@@ -56,11 +58,17 @@ esp_err_t save_config() {
   y = cJSON_CreateNumber(app_config.field_size.y);
   if (y == NULL) goto end;
   cJSON_AddItemToObject(field_size, "y", y);
+  
 
   // FIELD_SIZE_MARGIN
   cJSON *field_size_margin = cJSON_CreateNumber(app_config.field_size_margin);
   if (field_size_margin == NULL) goto end;
   cJSON_AddItemToObject(config, "field_size_margin", field_size_margin);
+
+  // SENSOR HEIGHT
+  cJSON *sensor_height  = cJSON_CreateNumber(app_config.sensor_height);
+  if (sensor_height == NULL) goto end;
+  cJSON_AddItemToObject(config, "sensor_height", sensor_height);
 
   //NODE_POSITIONS
   cJSON *node_positions = cJSON_CreateArray();
@@ -81,6 +89,11 @@ esp_err_t save_config() {
       if (y == NULL) goto end;
 
       cJSON_AddItemToObject(position, "y", y);
+
+      z = cJSON_CreateNumber(app_config.node_positions[index].z);
+      if (z == NULL) goto end;
+
+      cJSON_AddItemToObject(position, "z", z);
   }
 
   //LETTERS
@@ -232,6 +245,16 @@ esp_err_t load_config() {
       app_config.field_size_margin =  DEF_FIELD_SIZE_MARGIN;
     }
 
+
+    const cJSON *sensor_height = cJSON_GetObjectItemCaseSensitive(json, "sensor_height");
+    if (cJSON_IsNumber(sensor_height))
+    {
+      ESP_LOGI(TAG, "sensor_height %d", sensor_height->valueint);
+      app_config.sensor_height =  sensor_height->valueint;
+    } else {
+      app_config.sensor_height =  DEF_SENSOR_HEIGHT;
+    }
+
     const cJSON *node_positions = cJSON_GetObjectItemCaseSensitive(json, "node_positions");
     const cJSON *position = NULL;
     int counter = 0;
@@ -239,6 +262,7 @@ esp_err_t load_config() {
     {
         cJSON *x = cJSON_GetObjectItemCaseSensitive(position, "x");
         cJSON *y = cJSON_GetObjectItemCaseSensitive(position, "y");
+        cJSON *z = cJSON_GetObjectItemCaseSensitive(position, "z");
 
         if (!cJSON_IsNumber(x) || !cJSON_IsNumber(y))
         {
@@ -248,7 +272,15 @@ esp_err_t load_config() {
         app_config.node_positions[counter].x = x->valuedouble;
         app_config.node_positions[counter].y = y->valuedouble;
 
-        ESP_LOGI(TAG, "node_position %d: %d, %d", counter,  app_config.node_positions[counter].x,  app_config.node_positions[counter].y);
+        if (cJSON_IsNumber(z))
+        {
+          app_config.node_positions[counter].z = z->valuedouble;
+        } else {
+          app_config.node_positions[counter].z = DEF_NODE_HEIGHT;
+        }
+
+
+        ESP_LOGI(TAG, "node_position %d: %d, %d, %d", counter,  app_config.node_positions[counter].x,  app_config.node_positions[counter].y,  app_config.node_positions[counter].z);
         counter++;
     }
 

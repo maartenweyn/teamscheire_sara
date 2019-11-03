@@ -1,23 +1,3 @@
-// /* Standard includes. */
-// #include "string.h"
-// #include "esp_err.h"
-// /* lwIP core includes */
-// #include "lwip/opt.h"
-// #include "lwip/sockets.h"
-// #include <netinet/in.h>
-// #include "freertos/FreeRTOS.h"
-// #include "freertos/task.h"
-// #include "esp_vfs_fat.h"
-// #include "driver/sdmmc_host.h"
-// #include "driver/sdmmc_defs.h"
-// #include "sdmmc_cmd.h"
-// /* Utils includes. */
-// #include "esp_log.h"
-// #include "event.h"
-// #include "http.h"
-// #include "webserver.h"
-// #include "cJSON.h"
-// #include <dirent.h>
 
 #include <esp_wifi.h>
 #include <esp_event_loop.h>
@@ -34,21 +14,6 @@
 #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include <esp_log.h>
 #define TAG "webserver:"
-
-
-// #define GPIO_OUTPUT_IO_0    0//16
-// #define GPIO_OUTPUT_PIN_SEL  ((1<<GPIO_OUTPUT_IO_0))
-
-
-// static uint32_t http_url_length=0;
-// static uint32_t http_body_length=0;
-
-// static char* http_body=NULL;
-// static char* http_url=NULL;
-
-// static int32_t socket_fd, client_fd;
-// #define RES_HEAD "HTTP/1.1 200 OK\r\nContent-type: %s\r\nTransfer-Encoding: chunked\r\n\r\n"
-// static char chunk_len[15];
 
 static char read_buf[1024];
 
@@ -97,6 +62,7 @@ void print_main_content(httpd_req_t *req) {
 				sprintf(temp, "<li class=\"red\">Anchor %d (%d, %d)</li>", i+1, app_config.node_positions[i].x, app_config.node_positions[i].y);
 			strcat(read_buf, temp);
 		}
+
 		strcat(read_buf, "</ul>");
 
 		strcat(read_buf, "<h2>Position</h2>");
@@ -139,7 +105,7 @@ void print_config_content(httpd_req_t *req) {
         strcat(read_buf, temp);
         strcat(read_buf, "<br>");
         for (int i = 0; i < 6; i++) {
-			sprintf(temp, "Node %d x / y (cm):<br><input type=\"text\" name=\"node_positions_%d_x\" value=\"%d\"><input type=\"text\" name=\"node_positions_%d_y\" value=\"%d\"><br>", i+1, i+1, app_config.node_positions[i].x,  i+1, app_config.node_positions[i].y);
+			sprintf(temp, "Node %d x/y/z (cm):<br><input type=\"text\" name=\"node_positions_%d_x\" value=\"%d\"><input type=\"text\" name=\"node_positions_%d_y\" value=\"%d\"><input type=\"text\" name=\"node_positions_%d_z\" value=\"%d\"><br>", i+1, i+1, app_config.node_positions[i].x,  i+1, app_config.node_positions[i].y,  i+1, app_config.node_positions[i].z);
             strcat(read_buf, temp);
 		}
 
@@ -155,6 +121,11 @@ void print_config_content(httpd_req_t *req) {
         sprintf(temp, "<input type=\"text\" name=\"field_size_x\" value=\"%d\">", app_config.field_size.x);
         strcat(read_buf, temp);
         sprintf(temp, "<input type=\"text\" name=\"field_size_y\" value=\"%d\">", app_config.field_size.y);
+        strcat(read_buf, temp);
+        strcat(read_buf, "<br>");
+
+        strcat(read_buf, "Sensor Height (cm):<br>");
+        sprintf(temp, "<input type=\"text\" name=\"sensor_height\" value=\"%d\">", app_config.sensor_height);
         strcat(read_buf, temp);
         strcat(read_buf, "<br>");
 
@@ -307,12 +278,25 @@ esp_err_t config_handler(httpd_req_t *req)
                     app_config.node_positions[i].y = atoi(param);
                     safe_config = true;
                 }
+                sprintf(par_name, "node_positions_%d_z", i+1);
+                if (httpd_query_key_value(buf, par_name, param, sizeof(param)) == ESP_OK) {
+                    ESP_LOGI(TAG, "Found URL query parameter => %s=%s", par_name, param);
+                    app_config.node_positions[i].z = atoi(param);
+                    safe_config = true;
+                }
 		    }
 
             //nearby_threshold
             if (httpd_query_key_value(buf, "nearby_threshold", param, sizeof(param)) == ESP_OK) {
                 ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "nearby_threshold", param);
                 app_config.nearby_threshold = atoi(param);
+                safe_config = true;
+            }
+
+            //sensor_height
+            if (httpd_query_key_value(buf, "sensor_height", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "sensor_height", param);
+                app_config.sensor_height = atoi(param);
                 safe_config = true;
             }
 

@@ -58,7 +58,7 @@ static bool setRange(int id, int range)
 {
   ESP_LOGD(TAG, "setRange: %d: %d mm", id, range);
   static int last_id = 100;
-  static int iteration = 0;
+  //static int iteration = 0;
 
   bool got_position = false;
   
