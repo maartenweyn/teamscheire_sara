@@ -18,7 +18,7 @@ void create_default_config() {
   {
     app_config.node_positions[index].x = -1;
     app_config.node_positions[index].y = -1;
-    app_config.node_positions[index].y = 100;
+    app_config.node_positions[index].y = -1;
   }  
 }
 

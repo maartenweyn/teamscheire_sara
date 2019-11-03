@@ -87,11 +87,12 @@ static void update_weights() {
       if (meas_absence_counter[j] < USE_MEASUREMENT_THRESHOLD) {
         int dx = app_config.node_positions[j].x - particles[i].x;
         int dy = app_config.node_positions[j].y - particles[i].y;
-        double R = sqrt(dx * dx + dy * dy) - meas_ranges[j];
+        int dz = app_config.node_positions[j].z - app_config.sensor_height;
+        double R = sqrt(dx * dx + dy * dy + dz * dz) - meas_ranges[j];
         float w = DEFAULT_WEIGHT + exp(-0.5 * (R*R) / app_config.particle_filter.UWB_std2);
         particles[i].weight *= w;
 
-        ESP_LOGD(TAG, "(%d, %d) vs  %d (r=%d)->  R=%f (%f): w=%f, pw=%.20f", particles[i].x, particles[i].y, j, meas_ranges[j], sqrt(dx * dx + dy * dy), R, w, particles[i].weight);
+        ESP_LOGD(TAG, "(%d, %d) vs  %d (r=%d)->  R=%f (%f): w=%f, pw=%.20f", particles[i].x, particles[i].y, j, meas_ranges[j], sqrt(dx * dx + dy * dy + dz * dz), R, w, particles[i].weight);
       }
     }
 
