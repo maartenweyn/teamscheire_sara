@@ -196,20 +196,24 @@ static void predict(double delta_t_sec) {
 
 
   for (int i = 0; i < app_config.particle_filter.nr_of_particles; i++) {
-    particles[i].x += (int) (particles[i].speed  * cos(particles[i].direction) + (rand() % 40) - 20) * delta_t_sec; //should be gaussian but to computational    
-    particles[i].y += (int) (particles[i].speed  * sin(particles[i].direction) + (rand() % 40) - 20) * delta_t_sec;
+    // speed is mostly constant only small variation in this case =- 50 cm / s
     particles[i].speed +=  ((rand() % 100) - 50) * delta_t_sec;
     if (particles[i].speed  < 0)
       particles[i].speed = 0;
     else if (particles[i].speed  > app_config.particle_filter.max_speed)
       particles[i].speed = app_config.particle_filter.max_speed;
 
-    particles[i].direction +=  ((double)(rand()/RAND_MAX)*M_PI - M_PI/2) * delta_t_sec;
+    particles[i].direction +=  ((double)(rand()/RAND_MAX)*M_PI/2 - M_PI/4) * delta_t_sec; // max change of =- 45degrees / sec
         
     if (particles[i].direction  < 0)
       particles[i].direction += M_PI * 2;
     else if (particles[i].direction  > M_PI * 2)
       particles[i].direction -= M_PI * 2;
+
+
+    particles[i].x += (int) (particles[i].speed  * cos(particles[i].direction) + (rand() % 40) - 20) * delta_t_sec; //should be gaussian but to computational    
+    particles[i].y += (int) (particles[i].speed  * sin(particles[i].direction) + (rand() % 40) - 20) * delta_t_sec;
+    
 
     ESP_LOGD(TAG, "predict %d (%d, %d) (%d, %f) %f", i, particles[i].x, particles[i].y, particles[i].speed, particles[i].direction, particles[i].weight);
 

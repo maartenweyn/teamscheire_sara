@@ -239,6 +239,6 @@ void setup_player(void)
     regval = wm8978_read_reg(3);
     ESP_LOGI(TAG, "wm8978 REG 3: 0X%X", regval);
 
-    wm8978_sleep();
+    audio_mute(true);
     #endif
 }
