@@ -26,6 +26,7 @@ esp_err_t init_sdcard() {
   slot_config.gpio_mosi = SD_PIN_NUM_MOSI;
   slot_config.gpio_sck  = SD_PIN_NUM_CLK;
   slot_config.gpio_cs   = SD_PIN_NUM_CS;
+  
 
 
   // Options for mounting the filesystem.
