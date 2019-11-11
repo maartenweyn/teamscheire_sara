@@ -16,7 +16,8 @@ static char data[BUF_SIZE];
 
 void uwb_parser_init() {
   uart_config_t uart_config = { 
-    .baud_rate = 500000, 
+    //.baud_rate = 500000, 
+    .baud_rate = 115200, 
     .data_bits = UART_DATA_8_BITS, 
     .parity = UART_PARITY_DISABLE, 
     .stop_bits = UART_STOP_BITS_1, 
