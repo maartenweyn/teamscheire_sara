@@ -16,8 +16,7 @@ static char data[BUF_SIZE];
 
 void uwb_parser_init() {
   uart_config_t uart_config = { 
-    //.baud_rate = 500000, 
-    .baud_rate = 115200, 
+    .baud_rate = UWB_UART_BAUDRATE, 
     .data_bits = UART_DATA_8_BITS, 
     .parity = UART_PARITY_DISABLE, 
     .stop_bits = UART_STOP_BITS_1, 
@@ -42,8 +41,9 @@ void readLine(char* line) {
     char *ptr = line;
     while (1) {
         size = uart_read_bytes(UART_NUM_2, (unsigned char *) ptr, 1, 1000/portMAX_DELAY);
+        //ESP_LOGI(TAG, "uart_read_bytes: %d: %c", size, ptr[0]);
         if (size == 1) {
-            //printf("%c" , ptr[0]);
+            //printf("char: %c" , ptr[0]);
             if (*ptr == '\n') {
                 ptr++;
                 *ptr = 0;
@@ -159,7 +159,7 @@ static bool setRange(int id, int range)
   //ESP_LOGI(TAG, "LINE: (%d) %s", strlen(data), data);
 
   char* pch;
-  pch=strchr(data,',');
+  pch=strchr(data,';');
   if ((pch == NULL) || (pch-data != 1)) {
     counter++;
     if (counter > 100) {
@@ -171,8 +171,10 @@ static bool setRange(int id, int range)
     //LINE: (86) CC2538: ID: 0xb964, rev.: PG2.0, Flash: 512 KiB, SRAM: 32 KiB, AES/SHA: 1, ECC/RSA: 1
     //LINE: (24) 2,323947867395,21996519
 
+    // new version: 1;4294967295
+
     char* ptr;
-    char delim[] = ",";
+    char delim[] = ";";
 
 
     //ESP_LOGI(TAG, "LINE: (%d) %s", strlen(data), data);
@@ -182,11 +184,11 @@ static bool setRange(int id, int range)
     int id = atoi(ptr);
 
     //timestamp
-    ptr = strtok(NULL, delim);
-    if (ptr == NULL) {
-      counter++;
-      return false;
-    }
+    //ptr = strtok(NULL, delim);
+    // if (ptr == NULL) {
+    //   counter++;
+    //   return false;
+    // }
 
     //range
     ptr = strtok(NULL, delim);

@@ -14,6 +14,7 @@
 #define DEF_STD_THRESH        400
 #define DEF_SENSOR_HEIGHT     250
 #define DEF_NODE_HEIGHT       100
+#define DEF_VOLUME            50
 
 typedef struct {
   int nr_of_particles;
@@ -30,6 +31,7 @@ typedef struct {
  int sensor_height;
  position_t field_size;
  int field_size_margin;
+ uint8_t volume;
  letter_position_t letters[NR_OF_LETTERS];
  particle_filter_config_t particle_filter;
 } app_config_t;

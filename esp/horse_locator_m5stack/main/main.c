@@ -130,7 +130,7 @@ void app_main()
   // esp_err_t ret = dac_output_voltage(DAC_CHANNEL_1, 0);
   // ESP_LOGI(TAG, "dac_output_voltage %d", ret);
 
-  //ESP_LOGI(TAG, "Battery Level %d", getBatteryLevel());
+  ESP_LOGI(TAG, "Battery Level %d", getBatteryLevel());
 
 
   xTaskCreate(locator_task, "locator_task", 4096, NULL, 5, NULL);

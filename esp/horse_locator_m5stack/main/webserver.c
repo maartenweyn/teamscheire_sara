@@ -129,6 +129,11 @@ void print_config_content(httpd_req_t *req) {
         strcat(read_buf, temp);
         strcat(read_buf, "<br>");
 
+        strcat(read_buf, "Volume (%):<br>");
+        sprintf(temp, "<input type=\"text\" name=\"volume\" value=\"%d\">", app_config.volume);
+        strcat(read_buf, temp);
+        strcat(read_buf, "<br>");
+
         httpd_resp_send_chunk(req, read_buf, strlen(read_buf));
         ESP_LOGD(TAG,"CONTENT (%d) %s", strlen(read_buf), read_buf);
         memset(read_buf, 0, 1024);
@@ -297,6 +302,13 @@ esp_err_t config_handler(httpd_req_t *req)
             if (httpd_query_key_value(buf, "sensor_height", param, sizeof(param)) == ESP_OK) {
                 ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "sensor_height", param);
                 app_config.sensor_height = atoi(param);
+                safe_config = true;
+            }
+
+            //volume
+            if (httpd_query_key_value(buf, "volume", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "volume", param);
+                app_config.volume = atoi(param);
                 safe_config = true;
             }
 

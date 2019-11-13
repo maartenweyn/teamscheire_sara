@@ -26,6 +26,8 @@ static volatile bool blinking = false;
 
 static void oneshot_timer_callback(void* arg);
 
+static const uint8_t led_ids[] = LEDS_ON_ID;
+
 
 
 static void oneshot_timer_callback(void* arg) {
@@ -61,14 +63,15 @@ void leds_init() {
 }
 
 void leds_setcolor(uint8_t r, uint8_t g, uint8_t b, uint8_t w) {
-  for (uint16_t i = 0; i < STRANDS[0].numPixels; i+= LEDS_INC) {
+ // for (uint16_t i = 0; i < STRANDS[0].numPixels; i+= LEDS_INC) {
+   for (uint8_t i = 0; i < LEDS_ON_NR; i++) {
 #if LEDS_TYPE <= LED_WS2812BW
-        colTarget[i] = pixelFromRGBW(g, r, b, w);
+        colTarget[led_ids[i]] = pixelFromRGBW(g, r, b, w);
 #else
-        colTarget[i] = pixelFromRGBW(r, g, b, w);
+        colTarget[led_ids[i]] = pixelFromRGBW(r, g, b, w);
 #endif
-    }
-    for (uint16_t i = 0; i < STRANDS[0].numPixels; i++) {
+  }
+  for (uint16_t i = 0; i < STRANDS[0].numPixels; i++) {
 		STRANDS[0].pixels[i] = colTarget[i];
 	}
 	digitalLeds_updatePixels(&STRANDS[0]);

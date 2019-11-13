@@ -70,6 +70,11 @@ esp_err_t save_config() {
   if (sensor_height == NULL) goto end;
   cJSON_AddItemToObject(config, "sensor_height", sensor_height);
 
+    // SENSOR HEIGHT
+  cJSON *volume  = cJSON_CreateNumber(app_config.volume);
+  if (volume == NULL) goto end;
+  cJSON_AddItemToObject(config, "volume", volume);
+
   //NODE_POSITIONS
   cJSON *node_positions = cJSON_CreateArray();
   if (node_positions == NULL) goto end;
@@ -253,6 +258,15 @@ esp_err_t load_config() {
       app_config.sensor_height =  sensor_height->valueint;
     } else {
       app_config.sensor_height =  DEF_SENSOR_HEIGHT;
+    }
+
+    const cJSON *volume = cJSON_GetObjectItemCaseSensitive(json, "volume");
+    if (cJSON_IsNumber(volume))
+    {
+      ESP_LOGI(TAG, "volume %d", volume->valueint);
+      app_config.volume =  volume->valueint;
+    } else {
+      app_config.volume =  DEF_VOLUME;
     }
 
     const cJSON *node_positions = cJSON_GetObjectItemCaseSensitive(json, "node_positions");

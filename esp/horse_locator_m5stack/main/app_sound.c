@@ -18,7 +18,7 @@
 #include "fatfs_stream.h"
 #include "audio_mem.h"
 #include "main.h"
-
+#include "app_config.h"
 
 #ifdef  __WM8978_H 
 #include "wm8978.h"
@@ -133,36 +133,9 @@ void play_letter(char l) {
   char file_name[50];
   sprintf(file_name, "/sdcard/audio/%c.raw", l);
   ESP_LOGI(TAG, "file %s", file_name);
-  //audio_err_t ret = esp_player_music_play(file_name);
   aplay_raw(file_name);
-  //ESP_LOGI(TAG, "esp_audio_play %d", ret);
 }
 
-
-// void setup_player2()
-// {
-//     //wm8978_init(NULL);
-//     audio_board_handle_t board_handle = audio_board_init();
-
-//     i2s_config_t i2s_config = {
-//         .mode = I2S_MODE_MASTER  | I2S_MODE_TX | I2S_MODE_RX,
-//         .sample_rate =  44100,
-//         .bits_per_sample = 16,
-//         .communication_format = I2S_COMM_FORMAT_I2S,
-//         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
-//         .intr_alloc_flags = 0,
-//         .dma_buf_count = 3,
-//         .dma_buf_len = 1024,                                    
-//         .use_apll = 1,                                                          
-//         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL2
-//     };
-//     //install and start i2s driver
-//     i2s_driver_install(0, &i2s_config, 0, NULL);
-
-//     i2s_pin_config_t i2s_pin_cfg = {0};
-//     get_i2s_pins(0, &i2s_pin_cfg);
-//     i2s_set_pin(0, &i2s_pin_cfg);
-// }
 
 void setup_player(void)
 {
@@ -186,43 +159,19 @@ void setup_player(void)
     xTaskCreate(esp_audio_state_task, "player_task", 4096, cfg.evt_que, 1, NULL);
 
     // Create readers and add to esp_audio
-    // fatfs_stream_cfg_t fs_reader = FATFS_STREAM_CFG_DEFAULT();
-    // fs_reader.type = AUDIO_STREAM_READER;
-    i2s_stream_cfg_t i2s_reader = I2S_STREAM_CFG_DEFAULT();
-    i2s_reader.type = AUDIO_STREAM_READER;
-    // raw_stream_cfg_t raw_reader = RAW_STREAM_CFG_DEFAULT();
-    // raw_reader.type = AUDIO_STREAM_READER;
-
-    //esp_audio_input_stream_add(player, raw_stream_init(&raw_reader));
-    //esp_audio_input_stream_add(player, fatfs_stream_init(&fs_reader));
-    esp_audio_input_stream_add(player, i2s_stream_init(&i2s_reader));
-    // http_stream_cfg_t http_cfg = HTTP_STREAM_CFG_DEFAULT();
-    // http_cfg.event_handle = _http_stream_event_handle;
-    // http_cfg.type = AUDIO_STREAM_READER;
-    // http_cfg.enable_playlist_parser = true;
-    // audio_element_handle_t http_stream_reader = http_stream_init(&http_cfg);
-    // esp_audio_input_stream_add(player, http_stream_reader);
-
-    // Create writers and add to esp_audio
-    // fatfs_stream_cfg_t fs_writer = FATFS_STREAM_CFG_DEFAULT();
-    // fs_writer.type = AUDIO_STREAM_WRITER;
 
     i2s_stream_cfg_t i2s_writer = I2S_STREAM_CFG_DEFAULT();
     i2s_writer.type = AUDIO_STREAM_WRITER;
 
-    // raw_stream_cfg_t raw_writer = RAW_STREAM_CFG_DEFAULT();
-    // raw_writer.type = AUDIO_STREAM_WRITER;
 
     esp_audio_output_stream_add(player, i2s_stream_init(&i2s_writer));
-    //esp_audio_output_stream_add(player, fatfs_stream_init(&fs_writer));
-    //esp_audio_output_stream_add(player, raw_stream_init(&raw_writer));
 
     // Add decoders and encoders to esp_audio    
     wav_decoder_cfg_t  wav_dec_cfg  = DEFAULT_WAV_DECODER_CONFIG();
     esp_audio_codec_lib_add(player, AUDIO_CODEC_TYPE_DECODER, wav_decoder_init(&wav_dec_cfg));
 
     // Set default volume
-    esp_audio_vol_set(player, 100);
+    esp_audio_vol_set(player, app_config.volume);
     AUDIO_MEM_SHOW(TAG);
     ESP_LOGI(TAG, "esp_audio instance is:%p\r\n", player);
 
