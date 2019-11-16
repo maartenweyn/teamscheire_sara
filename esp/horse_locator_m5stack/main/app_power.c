@@ -39,3 +39,30 @@ int8_t getBatteryLevel()
     return -1;
   }
 }
+
+int power_shutdown() {
+  int res = 0;
+	uint8_t data = 0xFF;
+  i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+  res |= i2c_master_start(cmd);
+  res |= i2c_master_write_byte(cmd, (IP5306_ADDR<<1) | I2C_MASTER_WRITE, 1);
+  res |= i2c_master_write_byte(cmd, IP5306_REG_SYS_CTL1, 1);
+  res |= i2c_master_start(cmd);
+  res |= i2c_master_write_byte(cmd, ( IP5306_ADDR << 1 ) | I2C_MASTER_READ, 1);
+  res |= i2c_master_read_byte(cmd, &data, 0);
+  res |= i2c_master_stop(cmd);
+  res |= i2c_master_cmd_begin(BOARD_I2C_NUM, cmd, 1000 / portTICK_RATE_MS);
+  
+  ESP_LOGI(TAG, "shutdown %x (%d)", data, res);
+
+  res |= i2c_master_start(cmd);
+  res |= i2c_master_write_byte(cmd, (IP5306_ADDR<<1) | I2C_MASTER_WRITE, 1);
+  res |= i2c_master_write_byte(cmd, IP5306_REG_SYS_CTL1, 1);
+  res |= i2c_master_write_byte(cmd, data & (~BOOST_ENABLE_BIT), 1);
+  res |= i2c_master_stop(cmd);
+  res |= i2c_master_cmd_begin(BOARD_I2C_NUM, cmd, 1000 / portTICK_RATE_MS);
+
+  i2c_cmd_link_delete(cmd);
+
+  return 0;
+}

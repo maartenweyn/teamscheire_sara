@@ -104,6 +104,11 @@ void print_config_content(httpd_req_t *req) {
         sprintf(temp, "<input type=\"text\" name=\"nearby_threshold\" value=\"%d\">", app_config.nearby_threshold);
         strcat(read_buf, temp);
         strcat(read_buf, "<br>");
+
+        httpd_resp_send_chunk(req, read_buf, strlen(read_buf));
+        ESP_LOGD(TAG,"CONTENT (%d) %s", strlen(read_buf), read_buf);
+        memset(read_buf, 0, 1024);
+
         for (int i = 0; i < 6; i++) {
 			sprintf(temp, "Node %d x/y/z (cm):<br><input type=\"text\" name=\"node_positions_%d_x\" value=\"%d\"><input type=\"text\" name=\"node_positions_%d_y\" value=\"%d\"><input type=\"text\" name=\"node_positions_%d_z\" value=\"%d\"><br>", i+1, i+1, app_config.node_positions[i].x,  i+1, app_config.node_positions[i].y,  i+1, app_config.node_positions[i].z);
             strcat(read_buf, temp);
@@ -131,6 +136,16 @@ void print_config_content(httpd_req_t *req) {
 
         strcat(read_buf, "Volume (%):<br>");
         sprintf(temp, "<input type=\"text\" name=\"volume\" value=\"%d\">", app_config.volume);
+        strcat(read_buf, temp);
+        strcat(read_buf, "<br>");
+
+        strcat(read_buf, "Store Ranges (0/1):<br>");
+        sprintf(temp, "<input type=\"text\" name=\"store_ranges\" value=\"%d\">", app_config.store_ranges);
+        strcat(read_buf, temp);
+        strcat(read_buf, "<br>");
+
+        strcat(read_buf, "Store Ranges ID:<br>");
+        sprintf(temp, "<input type=\"text\" name=\"store_range_counter\" value=\"%d\">", app_config.store_range_counter);
         strcat(read_buf, temp);
         strcat(read_buf, "<br>");
 
@@ -290,6 +305,20 @@ esp_err_t config_handler(httpd_req_t *req)
                     safe_config = true;
                 }
 		    }
+
+            //store_ranges
+            if (httpd_query_key_value(buf, "store_ranges", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "store_ranges", param);
+                app_config.store_ranges = atoi(param);
+                safe_config = true;
+            }
+
+             //store_range_counter
+            if (httpd_query_key_value(buf, "store_range_counter", param, sizeof(param)) == ESP_OK) {
+                ESP_LOGI(TAG, "Found URL query parameter => %s=%s", "store_range_counter", param);
+                app_config.store_range_counter = atoi(param);
+                safe_config = true;
+            }
 
             //nearby_threshold
             if (httpd_query_key_value(buf, "nearby_threshold", param, sizeof(param)) == ESP_OK) {

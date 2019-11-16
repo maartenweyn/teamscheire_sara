@@ -3,15 +3,20 @@
 #include "app_config.h"
 #include "uwb_parser.h"
 #include "app_sound.h"
+#include "app_sdcard.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "app_leds.h"
 
+#include "esp_task_wdt.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+
+#include "tft.h"
 
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
@@ -43,6 +48,9 @@ int nearby_letter = -1;
 
 static bool particles_init = false;
 static uint32_t prev_measurement_ts = 0;
+
+extern volatile bool play_sound;
+extern volatile bool store_config;
 
 static void init_particles() {
   ESP_LOGD(TAG, "init_particles");
@@ -274,17 +282,25 @@ bool processMeasurement_intersections() {
   static int intersection_pointer = 0;
   static position_t sum_intersection;
 
-  // Print ranges
-  for (int i = 0; i < 6; i++)
-  {
-    printf("%d\t", meas_ranges[i]);
-  }
-  printf("\n");
-  for (int i = 0; i < 6; i++)
-  {
-    printf("%d\t", meas_absence_counter[i]);
-  }
-  printf("\n");
+
+  char range_string[512] = {0};
+
+  sprintf(range_string, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
+    meas_ranges[0],meas_ranges[1],meas_ranges[2],meas_ranges[3],meas_ranges[4],meas_ranges[5],
+    meas_absence_counter[0],meas_absence_counter[1],meas_absence_counter[2],meas_absence_counter[3],meas_absence_counter[4],meas_absence_counter[5]);
+  // // Print ranges
+  // for (int i = 0; i < 6; i++)
+  // {
+  //   printf("%d\t", meas_ranges[i]);
+  // }
+  // printf("\n");
+  // for (int i = 0; i < 6; i++)
+  // {
+  //   printf("%d\t", meas_absence_counter[i]);
+  // }
+  // printf("\n");
+
+  printf("RANGE: %s", range_string);
 
   // Calculate intersections
   nr_of_intersections = 0;
@@ -433,17 +449,26 @@ bool processMeasurement_intersections() {
 }
 
 bool processMeasurement () {
-  // Print ranges
-  for (int i = 0; i < 6; i++)
-  {
-    printf("%d\t", meas_ranges[i]);
-  }
-  printf("\n");
-  for (int i = 0; i < 6; i++)
-  {
-    printf("%d\t", meas_absence_counter[i]);
-  }
-  printf("\n");
+  char range_string[512] = {0};
+
+  sprintf(range_string, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
+    meas_ranges[0],meas_ranges[1],meas_ranges[2],meas_ranges[3],meas_ranges[4],meas_ranges[5],
+    meas_absence_counter[0],meas_absence_counter[1],meas_absence_counter[2],meas_absence_counter[3],meas_absence_counter[4],meas_absence_counter[5]);
+  // // Print ranges
+  // for (int i = 0; i < 6; i++)
+  // {
+  //   printf("%d\t", meas_ranges[i]);
+  // }
+  // printf("\n");
+  // for (int i = 0; i < 6; i++)
+  // {
+  //   printf("%d\t", meas_absence_counter[i]);
+  // }
+  // printf("\n");
+
+  printf("RANGE: %s", range_string);
+
+
 
   uint32_t ts = xTaskGetTickCount();
   double diff = (ts - prev_measurement_ts) / 1000.0;
@@ -468,6 +493,9 @@ bool processMeasurement () {
       }
     }
   }
+
+  if (app_config.store_ranges)
+    store_ranges(range_string);
   
   return true;
 }
@@ -478,15 +506,33 @@ void initialize_localization_engine() {
   prev_measurement_ts = xTaskGetTickCount();
 }
 
+void esp_task_wdt_isr_user_handler(void)
+{
+		printf("esp_task_wdt_isr_user_handler");
+}
+
 void watch_position( void *pvParameters ){
+  esp_task_wdt_add(NULL);
+  esp_task_wdt_status(NULL);
+
   while(1) {
+
+    if (play_sound) {
+      play_sound = false;
+      play_letter('A');
+    }
+    if (store_config) {
+      store_config = false;
+      save_config();
+    }
+
     if (receiving_ranges) {
       if ((last_position_counter < ALLOW_DELAY)) {
         ESP_LOGI(TAG, "current_position: (%d, %d) std (%d, %d), valid: %d, counter %d", current_position.pos.x, current_position.pos.y, current_position.std.x, current_position.std.y, current_position.is_valid, last_position_counter);
 
         if ((nearby_letter > -1)) {
           play_letter(app_config.letters[nearby_letter].letter);
-          ESP_LOGI(TAG, "letter");
+          ESP_LOGI(TAG, "letter %c", app_config.letters[nearby_letter].letter);
           leds_blink(0, 255, 0, 0, 50);
           //leds_setcolor(4, 100, 100, 100);
 
@@ -505,12 +551,24 @@ void watch_position( void *pvParameters ){
       receiving_ranges = false;
     } else {
       ESP_LOGI(TAG, "No Ranges");
+      // TFT_fillRoundRect(10, 210, 100, 20, 0, TFT_WHITE);
+      // TFT_print("No Ranges", 10, 210);
       leds_blink(255, 0, 0, 0, 50);
+
+
       //play_letter('x');
       //leds_setcolor(4, 100, 0, 0);
     }
     
     last_position_counter++;
+
+
+    char lcd_text[128];
+    sprintf(lcd_text, "text %d", last_position_counter);
+    //TFT_fillRoundRect(10, 210, 100, 20, 0, TFT_WHITE);
+    //TFT_print(lcd_text, 10, 210);
+
+    esp_task_wdt_reset();
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
   }

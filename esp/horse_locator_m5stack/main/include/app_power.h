@@ -60,5 +60,6 @@
 #define CHG_CC_BIT    (0x20)
 
 int8_t getBatteryLevel();
+int power_shutdown();
 
 #endif

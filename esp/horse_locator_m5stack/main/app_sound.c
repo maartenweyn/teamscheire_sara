@@ -20,6 +20,10 @@
 #include "main.h"
 #include "app_config.h"
 
+
+#include "nvs_flash.h"
+#include "nvs.h"
+
 #ifdef  __WM8978_H 
 #include "wm8978.h"
 #else
@@ -28,7 +32,152 @@
 
 #define TAG "APP_SOUND:"
 
+#define MAX_LETTERS 15
+#define MEM_CHUNK_SIZE 10240
+
+
+#define STORAGE_NAMESPACE "sound"
+
+
 static esp_audio_handle_t player;
+
+typedef struct {
+    char l;
+    uint8_t pages;
+} letter_page_info_t;
+
+static letter_page_info_t letter_page_info[MAX_LETTERS] = {{' ', 0},};
+
+
+static int8_t find_letter_info(char l) {
+    for (int i = 0; i<MAX_LETTERS; i++) {
+        if (letter_page_info[i].l == l) return i;
+    }
+
+    return -1;
+}
+
+static int8_t find_empty_letter_index() {
+    for (int i = 0; i<MAX_LETTERS; i++) {
+        if (letter_page_info[i].l == ' ') return i;
+    }
+
+    return -1;
+}
+
+int init_letter_storage() {
+    nvs_handle my_handle;
+    esp_err_t err;
+    // Open
+    err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+    ESP_LOGI(TAG, "nvs_open %d", err);
+    if (err != ESP_OK) return err;
+
+    size_t required_size = sizeof(letter_page_info); 
+    err = nvs_get_blob(my_handle, "letter_page", &letter_page_info, &required_size);
+    if (err == ESP_OK && required_size != 0) {
+        // Close
+        nvs_close(my_handle);
+        return ESP_OK;
+    }
+
+
+    for (int i = 0; i<MAX_LETTERS; i++) {
+        letter_page_info[i].l = ' ';
+        letter_page_info[i].pages = 0;
+    }
+     
+    required_size = sizeof(letter_page_info); 
+    err = nvs_set_blob(my_handle, "letter_page", &letter_page_info, required_size);
+    ESP_LOGI(TAG, "nvs_set_blob letter_page_info %d bytes: %d", required_size, err);
+    if (err != ESP_OK) return err;
+
+    err = nvs_commit(my_handle);
+    ESP_LOGI(TAG, "nvs_commit %d", err);
+    if (err != ESP_OK) return err;
+
+    nvs_close(my_handle);
+
+    return ESP_OK;
+}
+
+int save_sound(char letter)
+{
+    nvs_handle my_handle;
+    esp_err_t err;
+
+    int8_t letter_index = find_letter_info(letter);
+    if (letter_index != -1) {
+        ESP_LOGI(TAG, "save_sound %c already saved on letter_index %d", letter, letter_index);
+        return 1;
+    }
+
+    letter_index = find_empty_letter_index();
+    if (letter_index == -1) {
+        ESP_LOGI(TAG, "save_sound no emtpy letter_index");
+        return 2;
+    }
+
+    ESP_LOGI(TAG, "save_sound on letter_index %d", letter_index);
+
+    char filename[50];
+    sprintf(filename, "/sdcard/audio/%c.raw", letter);
+    ESP_LOGI(TAG, "file %s", filename);
+
+    ESP_LOGI(TAG, "save_sound open file");
+	FILE *f= fopen(filename, "r");
+	if (f == NULL) {
+        ESP_LOGE(TAG,"Failed to open file:%s",filename);
+        return -1;
+	}
+
+    // Open
+    err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+    ESP_LOGI(TAG, "nvs_open %d", err);
+    if (err != ESP_OK) return err;
+
+    char page_name[10];
+	int rlen;
+	int res;
+    int totalsize = 0;
+    int pages = 0;
+	char* samples_data = malloc(MEM_CHUNK_SIZE);
+	do {
+		rlen=fread(samples_data,1,MEM_CHUNK_SIZE,f);
+        totalsize += rlen;
+
+        sprintf(page_name, "%c_%d", letter, pages);
+        ESP_LOGI(TAG, "page_name %s", page_name);
+
+        ESP_LOGI(TAG, "totalsize %d %d", totalsize, rlen);
+
+        // Write
+        err = nvs_set_blob(my_handle, page_name, samples_data, rlen);
+        ESP_LOGI(TAG, "nvs_set_blob %s %d bytes: %d", page_name, rlen, err);
+        if (err != ESP_OK) return err;
+
+        pages++;
+	} while (rlen == MEM_CHUNK_SIZE);
+
+    letter_page_info[letter_index].l = letter;
+    letter_page_info[letter_index].pages = pages;
+
+    size_t required_size = sizeof(letter_page_info); 
+    err = nvs_set_blob(my_handle, "letter_page", &letter_page_info, required_size);
+    ESP_LOGI(TAG, "nvs_set_blob letter_page %d bytes: %d", required_size, err);
+    if (err != ESP_OK) return err;
+
+    err = nvs_commit(my_handle);
+    ESP_LOGI(TAG, "nvs_commit %d", err);
+    if (err != ESP_OK) return err;
+
+    // Close
+	free(samples_data);
+    nvs_close(my_handle);
+    fclose(f);
+	f=NULL;
+    return ESP_OK;
+}
 
 static void esp_audio_state_task (void *para)
 {
@@ -40,9 +189,6 @@ static void esp_audio_state_task (void *para)
     }
     vTaskDelete(NULL);
 }
-
-
-
 
 static int audio_mute(bool mute) {
     int res = 0;
@@ -94,6 +240,8 @@ audio_err_t esp_player_music_play(const char *url)
     return ret;
 }
 
+
+
 void aplay_raw(char* filename){
     //esp_audio_vol_set(player, 40);
     ESP_LOGI(TAG, "aplay_raw wake");
@@ -106,22 +254,24 @@ void aplay_raw(char* filename){
 			return;
 	}
 	int rlen;
-	//int res;
-	char* samples_data = malloc(1024);
+	int res;
+    int totalsize = 0;
+	char* samples_data = malloc(MEM_CHUNK_SIZE);
     size_t bytes_written = 0;
     ESP_LOGI(TAG, "aplay_raw read file");
 	do {
-		rlen=fread(samples_data,1,1024,f);
-        //ESP_LOGI(TAG, "aplay_raw read %d bytes", rlen);
+		rlen=fread(samples_data,1,MEM_CHUNK_SIZE,f);
+        totalsize += rlen;
+        //ESP_LOGD(TAG, "aplay_raw read %d bytes", rlen);
 		//datalen-=rlen;
 		//hal_i2s_write(0,samples_data,rlen,5000);
-        //res = 
-        i2s_write(0, samples_data, rlen, &bytes_written, 1000);
+        res = i2s_write(0, samples_data, rlen, &bytes_written, 1000);
 
-        //ESP_LOGI(TAG, "aplay_raw i2s write %d, %d bytes", res, bytes_written);
-	} while(rlen==1024);
+        //ESP_LOGD(TAG, "aplay_raw i2s write %d, %d bytes", res, bytes_written);
+	} while(rlen==MEM_CHUNK_SIZE);
 	fclose(f);
 	free(samples_data);
+    ESP_LOGI(TAG, "aplay_raw i2s writen %d bytes", totalsize);
 	f=NULL;
     //esp_audio_vol_set(player, 0);
 
@@ -129,11 +279,68 @@ void aplay_raw(char* filename){
     audio_mute(true);
 }
 
+int play_from_memory(char l) {
+    int8_t letter_index = find_letter_info(l);
+    if (letter_index == -1) {
+        return 1;
+    }
+
+    nvs_handle my_handle;
+    esp_err_t err;
+
+    // Open
+    err = nvs_open(STORAGE_NAMESPACE, NVS_READONLY, &my_handle);
+    if (err != ESP_OK) return err;
+
+    char* samples_data = malloc(MEM_CHUNK_SIZE);
+    char page_name[10];
+
+    ESP_LOGI(TAG, "play_from_memory wake");
+    audio_mute(false);
+
+    size_t bytes_written; 
+
+    ESP_LOGI(TAG, "play_from_memory retreiving %d pages", letter_page_info[letter_index].pages);
+    for (int i = 0; i < letter_page_info[letter_index].pages; i++) {
+        size_t required_size = MEM_CHUNK_SIZE; 
+        sprintf(page_name, "%c_%d", l, i);
+        err = nvs_get_blob(my_handle, page_name, samples_data, &required_size);
+        if (err != ESP_OK || required_size == 0) {
+            ESP_LOGE(TAG, "nvs_get_blob %s with size %d, ret %d", page_name, required_size, err);
+            break;
+        }
+
+        err = i2s_write(0, samples_data, required_size, &bytes_written, 1000);
+    }
+
+    free(samples_data);
+    ESP_LOGI(TAG, "play_from_memory sleep");
+    audio_mute(true);
+
+    // Close
+    nvs_close(my_handle);
+    return err;
+
+}
+
 void play_letter(char l) {
-  char file_name[50];
-  sprintf(file_name, "/sdcard/audio/%c.raw", l);
-  ESP_LOGI(TAG, "file %s", file_name);
-  aplay_raw(file_name);
+    int ret = play_from_memory(l);
+    if (ret == ESP_OK) return;
+
+    ESP_LOGI(TAG, "play_letter %c not loaded yet", l);
+
+    ret = save_sound(l);
+
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "play_letter %c loaded, now play", l);
+        play_letter(l);
+    } else {
+        ESP_LOGI(TAG, "play_letter %c could not be loaded, now play from sd", l);
+        char file_name[50];
+        sprintf(file_name, "/sdcard/audio/%c.raw", l);
+        ESP_LOGI(TAG, "file %s", file_name);
+        aplay_raw(file_name);
+    }
 }
 
 
@@ -190,4 +397,8 @@ void setup_player(void)
 
     audio_mute(true);
     #endif
+}
+
+void set_volume() {
+    esp_audio_vol_set(player, app_config.volume);
 }

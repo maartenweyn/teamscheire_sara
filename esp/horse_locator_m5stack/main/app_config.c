@@ -75,6 +75,16 @@ esp_err_t save_config() {
   if (volume == NULL) goto end;
   cJSON_AddItemToObject(config, "volume", volume);
 
+  // DEBUG
+  cJSON *store_ranges  = cJSON_CreateNumber(app_config.store_ranges);
+  if (store_ranges == NULL) goto end;
+  cJSON_AddItemToObject(config, "store_ranges", store_ranges);
+
+    // DEBUG
+  cJSON *store_range_counter  = cJSON_CreateNumber(app_config.store_range_counter);
+  if (store_range_counter == NULL) goto end;
+  cJSON_AddItemToObject(config, "store_range_counter", store_range_counter);
+
   //NODE_POSITIONS
   cJSON *node_positions = cJSON_CreateArray();
   if (node_positions == NULL) goto end;
@@ -182,9 +192,9 @@ esp_err_t load_config() {
     while(1){
       uint32_t r;
     	r=fread(read_buf,1,2048,f);
-    	if(r>0){
+    	if (r>0) {
     		 ESP_LOGI(TAG, "Content: %s", read_buf);
-    	}else
+    	} else
     		break;
     }
 
@@ -197,7 +207,7 @@ esp_err_t load_config() {
         {
             fprintf(stderr, "Error before: %s\n", error_ptr);
         }
-        goto end;
+        //goto end;
     }
 
     const cJSON *wifi_ssid = cJSON_GetObjectItemCaseSensitive(json, "wifi_ssid");
@@ -205,6 +215,8 @@ esp_err_t load_config() {
     {
         ESP_LOGI(TAG, "wifi_ssid %s", wifi_ssid->valuestring);
         strcpy(app_config.wifi_ssid, wifi_ssid->valuestring);
+    } else {
+      strcpy(app_config.wifi_ssid, DEF_SSID);
     }
 
     const cJSON *wifi_passwd = cJSON_GetObjectItemCaseSensitive(json, "wifi_passwd");
@@ -212,6 +224,8 @@ esp_err_t load_config() {
     {
         ESP_LOGI(TAG, "wifi_passwd %s", wifi_passwd->valuestring);
         strcpy(app_config.wifi_passwd, wifi_passwd->valuestring);
+    }else {
+      strcpy(app_config.wifi_passwd, DEF_passwd);
     }
 
     const cJSON *nearby_threshold = cJSON_GetObjectItemCaseSensitive(json, "nearby_threshold");
@@ -354,6 +368,24 @@ esp_err_t load_config() {
       app_config.particle_filter.std_min_threshold =  std_min_threshold->valueint;
     } else {
       app_config.particle_filter.std_min_threshold =  DEF_STD_THRESH;
+    }
+
+    const cJSON *store_ranges = cJSON_GetObjectItemCaseSensitive(json, "store_ranges");
+    if (cJSON_IsNumber(store_ranges))
+    {
+      ESP_LOGI(TAG, "store_ranges %d", store_ranges->valueint);
+      app_config.store_ranges =  store_ranges->valueint;
+    } else {
+      app_config.store_ranges =  0;
+    }
+
+    const cJSON *store_range_counter = cJSON_GetObjectItemCaseSensitive(json, "store_range_counter");
+    if (cJSON_IsNumber(store_range_counter))
+    {
+      ESP_LOGI(TAG, "store_range_counter %d", store_range_counter->valueint);
+      app_config.store_range_counter =  store_range_counter->valueint;
+    } else {
+      app_config.store_range_counter =  0;
     }
 
     fclose(f);

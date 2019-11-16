@@ -9,10 +9,10 @@
 #define USE_MEASUREMENT_THRESHOLD 6 //MEAS_AVERAGE * 6 //4 * 6 (can miss MEAS_AVERAGE cycles)
 
 //SDCARD
-#define PIN_NUM_MISO 2
-#define PIN_NUM_MOSI 15
-#define PIN_NUM_CLK  14
-#define PIN_NUM_CS   13
+// #define PIN_NUM_MISO 2
+// #define PIN_NUM_MOSI 15
+// #define PIN_NUM_CLK  14
+// #define PIN_NUM_CS   13
 
 //#define SKIP_SD_CARD
 

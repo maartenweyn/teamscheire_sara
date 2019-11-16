@@ -37,6 +37,10 @@
 
 #include "periph_sdcard.h"
 #include "periph_led.h"
+#include "periph_button.h"
+#include "periph_service.h"
+
+#include "input_key_service.h"
 
 #include "app_sound.h"
 #include "app_config.h"
@@ -45,6 +49,11 @@
 #include "uwb_parser.h"
 #include "app_leds.h"
 #include "app_power.h"
+
+#include "tftspi.h"
+#include "tft.h"
+
+
 
  #include <http_server.h>
 
@@ -65,12 +74,161 @@
 esp_periph_set_handle_t set;
 esp_periph_handle_t led_handle = NULL;
 
+volatile bool play_sound = false;
+volatile bool store_config = false;
+
+static esp_err_t test_input_key_service_callback(periph_service_handle_t handle, periph_service_event_t *evt, void *ctx)
+{
+    char lcd_text[32];
+    ESP_LOGI(TAG, "type=>%d, source=>%d, data=>%d, len=>%d", evt->type, (int)evt->source, (int)evt->data, evt->len);
+
+    if (evt->len == BUTTON_A) {
+      if (evt->type == 4) { // long press 
+        power_shutdown();
+      }
+    }
+
+    if (evt->len == BUTTON_C) {
+      if (evt->type == 2) { // short press 
+        if (app_config.volume > 4) {
+          app_config.volume -= 5;
+          set_volume();
+          ESP_LOGI(TAG, "Volume down %d", app_config.volume);
+          sprintf(lcd_text, "Vol: %d%%", app_config.volume);
+          //TFT_fillRoundRect(10, 50, 100, 20, 0, TFT_WHITE);
+          //TFT_print(lcd_text, 10, 50);
+          play_sound = true;
+        }
+      } else if (evt->type == 4) { // long press 
+        store_config = true;
+      }
+    }
+
+    if (evt->len == BUTTON_B) {
+      if (evt->type == 2) { // short press 
+        if (app_config.volume < 96) {
+          app_config.volume += 5;
+          set_volume();
+          ESP_LOGI(TAG, "Volume up %d", app_config.volume);
+          sprintf(lcd_text, "Vol: %d%%", app_config.volume);
+          //TFT_fillRoundRect(10, 50, 100, 20, 0, TFT_WHITE);
+          //TFT_print(lcd_text, 10, 50);
+          play_sound = true;
+        }
+      }
+    }
+    return ESP_OK;
+}
+
+#define SPI_BUS TFT_HSPI_HOST
+
+void lcdInit(void){
+        //test_sd_card();
+    // ========  PREPARE DISPLAY INITIALIZATION  =========
+    esp_err_t ret;
+
+    // ====================================================================
+    // === Pins MUST be initialized before SPI interface initialization ===
+    // ====================================================================
+    TFT_PinsInit();
+
+    // ====  CONFIGURE SPI DEVICES(s)  ====================================================================================
+
+    spi_lobo_device_handle_t spi;
+	
+    spi_lobo_bus_config_t buscfg={
+        .miso_io_num=PIN_NUM_MISO,				// set SPI MISO pin
+        .mosi_io_num=PIN_NUM_MOSI,				// set SPI MOSI pin
+        .sclk_io_num=PIN_NUM_CLK,				// set SPI CLK pin
+        .quadwp_io_num=-1,
+        .quadhd_io_num=-1,
+		.max_transfer_sz = 6*1024,
+    };
+    spi_lobo_device_interface_config_t devcfg={
+        .clock_speed_hz=8000000,                // Initial clock out at 8 MHz
+        .mode=0,                                // SPI mode 0
+        .spics_io_num=-1,                       // we will use external CS pin
+		.spics_ext_io_num=PIN_NUM_CS,           // external CS pin
+		.flags=LB_SPI_DEVICE_HALFDUPLEX,        // ALWAYS SET  to HALF DUPLEX MODE!! for display spi
+    };
+
+    vTaskDelay(500 / portTICK_RATE_MS);
+    printf("Pins used: miso=%d, mosi=%d, sck=%d, cs=%d\r\n", PIN_NUM_MISO, PIN_NUM_MOSI, PIN_NUM_CLK, PIN_NUM_CS);
+
+
+	// ==================================================================
+	// ==== Initialize the SPI bus and attach the LCD to the SPI bus ====
+
+	ret=spi_lobo_bus_add_device(SPI_BUS, &buscfg, &devcfg, &spi);
+    assert(ret==ESP_OK);
+	printf("SPI: display device added to spi bus (%d)\r\n", SPI_BUS);
+	disp_spi = spi;
+
+	// ==== Test select/deselect ====
+	ret = spi_lobo_device_select(spi, 1);
+    assert(ret==ESP_OK);
+	ret = spi_lobo_device_deselect(spi);
+    assert(ret==ESP_OK);
+
+	printf("SPI: attached display device, speed=%u\r\n", spi_lobo_get_speed(spi));
+	printf("SPI: bus uses native pins: %s\r\n", spi_lobo_uses_native_pins(spi) ? "true" : "false");
+
+
+	printf("SPI: display init...\r\n");
+	TFT_display_init();
+    printf("OK\r\n");
+	// ---- Detect maximum read speed ----
+	max_rdclock = 40000000;
+	printf("SPI: Max rd speed = %u\r\n", max_rdclock);
+
+    // ==== Set SPI clock used for display operations ====
+	spi_lobo_set_speed(spi, DEFAULT_SPI_CLOCK);
+	printf("SPI: Changed speed to %u\r\n", spi_lobo_get_speed(spi));
+
+  font_rotate = 0;
+	text_wrap = 0;
+	font_transparent = 0;
+	font_forceFixed = 0;
+	gray_scale = 0;
+  _fg = TFT_BLACK;
+  _bg = TFT_WHITE;
+  TFT_invertDisplay(INVERT_ON);
+  TFT_setGammaCurve(DEFAULT_GAMMA_CURVE);
+	TFT_setRotation(LANDSCAPE_FLIP);
+	TFT_setFont(DEJAVU24_FONT, NULL);
+	TFT_resetclipwin();
+  TFT_fillScreen(TFT_WHITE);
+
+  TFT_print("SarAssist", CENTER, CENTER);
+  TFT_print("Team Scheire", CENTER, LASTY+25);
+
+  
+	TFT_setFont(SMALL_FONT, NULL);
+
+  TFT_print("VOL DOWN", 27, 2);
+  TFT_print("VOL UP", 138, 2);
+  TFT_print("STORE CONFIG", 10, 20);
+  TFT_print("POWER OFF", 225, 2);
+
+  
+	TFT_setFont(DEJAVU18_FONT, NULL);
+
+  // TFT_fillRect(10, 210, 100, 20, TFT_WHITE);
+  // TFT_print("No Ranges", 10, 210);
+
+  disp_select();
+}
+
+
 void app_main()
 {
   //event_engine_init();
-  esp_err_t err = nvs_flash_init()
-  ;ESP_LOGI(TAG, "nvs_flash_init %x", err);
-  if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
+
+  //ESP_ERROR_CHECK(nvs_flash_erase());
+
+  esp_err_t err = nvs_flash_init();
+  ESP_LOGI(TAG, "nvs_flash_init %x", err);
+  if (err == ESP_ERR_NVS_NO_FREE_PAGES  || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
       // NVS partition was truncated and needs to be erased
       // Retry nvs_flash_init
       ESP_ERROR_CHECK(nvs_flash_erase());
@@ -78,10 +236,15 @@ void app_main()
       ESP_LOGI(TAG, "nvs_flash_init %x", err);
   }
 
+  // esp_task_wdt_init(2, false);
+  // esp_task_wdt_delete(xTaskGetIdleTaskHandleForCPU(0));
+  // esp_task_wdt_delete(xTaskGetIdleTaskHandleForCPU(1));
+
   esp_periph_config_t periph_cfg = DEFAULT_ESP_PHERIPH_SET_CONFIG();
   set = esp_periph_set_init(&periph_cfg);
 
 
+  lcdInit();
 
   ESP_LOGI(TAG, "[ 3 ] Init leds");
 
@@ -113,14 +276,56 @@ void app_main()
   ESP_LOGI(TAG, "[ 2 ] Setup Audio");
 
   setup_player();
+  
+  init_letter_storage();
 
-  play_letter('a');
+  play_letter('A');
+  play_letter('F');
+  play_letter('B');
+  play_letter('M');
+  play_letter('C');
+  play_letter('H');
+  play_letter('E');
+  play_letter('K');
+  play_letter('X');
 
 
+
+  // Initialize Button peripheral
+  periph_button_cfg_t btn_cfg = {
+      .gpio_mask = (1ULL << BUTTON_A | (1ULL << BUTTON_B) | (1ULL << BUTTON_C)), 
+  };
+  esp_periph_handle_t button_handle = periph_button_init(&btn_cfg);
+  esp_periph_start(set, button_handle);
+
+  input_key_service_info_t input_info[] = {      
+        {                                   
+            .type = PERIPH_ID_BUTTON,      
+            .user_id = 0,         
+            .act_id = BUTTON_A,         
+        },                                  
+        {                                   
+            .type = PERIPH_ID_BUTTON,      
+            .user_id = 1,        
+            .act_id = BUTTON_B,        
+        },                                  
+        {                                   
+            .type = PERIPH_ID_BUTTON,      
+            .user_id = 2,         
+            .act_id = BUTTON_C,         
+        }                                  
+    };
+
+  periph_service_handle_t input_key_handle = input_key_service_create(set);
+
+  input_key_service_add_key(input_key_handle, input_info, INPUT_KEY_NUM);
+  periph_service_set_callback(input_key_handle, test_input_key_service_callback, NULL);
 
 
   static httpd_handle_t server = NULL;
   initialise_wifi(&server);
+
+  init_debug_log();
 
   initialize_localization_engine();
 
@@ -131,6 +336,8 @@ void app_main()
   // ESP_LOGI(TAG, "dac_output_voltage %d", ret);
 
   ESP_LOGI(TAG, "Battery Level %d", getBatteryLevel());
+
+  //power_shutdown();
 
 
   xTaskCreate(locator_task, "locator_task", 4096, NULL, 5, NULL);

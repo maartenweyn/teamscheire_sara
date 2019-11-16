@@ -15,6 +15,8 @@
 #define DEF_SENSOR_HEIGHT     250
 #define DEF_NODE_HEIGHT       100
 #define DEF_VOLUME            50
+#define DEF_SSID              "teamscheire"
+#define DEF_passwd            "0123456789"
 
 typedef struct {
   int nr_of_particles;
@@ -34,6 +36,8 @@ typedef struct {
  uint8_t volume;
  letter_position_t letters[NR_OF_LETTERS];
  particle_filter_config_t particle_filter;
+ uint8_t store_ranges;
+ uint8_t store_range_counter;
 } app_config_t;
 
 extern app_config_t app_config;
