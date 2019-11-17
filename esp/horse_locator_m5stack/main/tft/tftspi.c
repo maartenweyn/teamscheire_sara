@@ -57,6 +57,8 @@ static uint8_t _dma_sending = 0;
 esp_err_t IRAM_ATTR wait_trans_finish(uint8_t free_line)
 {
 	// Wait for SPI bus ready
+	if (disp_spi == NULL) return ESP_OK; 
+
 	while (disp_spi->host->hw->cmd.usr);
 	if ((free_line) && (trans_cline)) {
 		free(trans_cline);
@@ -80,6 +82,7 @@ esp_err_t IRAM_ATTR wait_trans_finish(uint8_t free_line)
 //-------------------------------
 esp_err_t IRAM_ATTR disp_select()
 {
+	if (disp_spi == NULL) return ESP_OK; 
 	wait_trans_finish(1);
 	return spi_lobo_device_select(disp_spi, 0);
 }
@@ -87,6 +90,7 @@ esp_err_t IRAM_ATTR disp_select()
 //---------------------------------
 esp_err_t IRAM_ATTR disp_deselect()
 {
+	if (disp_spi == NULL) return ESP_OK; 
 	wait_trans_finish(1);
 	return spi_lobo_device_deselect(disp_spi);
 }

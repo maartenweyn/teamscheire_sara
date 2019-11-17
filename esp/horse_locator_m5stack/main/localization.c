@@ -27,6 +27,8 @@
 #define RESAMPLE_PERC 0.95
 #define DEFAULT_WEIGHT 0.00001
 
+static char lcd_text[128];
+
 
 int meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
 //int avg_meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
@@ -524,6 +526,7 @@ void watch_position( void *pvParameters ){
     if (store_config) {
       store_config = false;
       save_config();
+      leds_blink(0, 255, 0, 0, 50);
     }
 
     if (receiving_ranges) {
@@ -533,26 +536,41 @@ void watch_position( void *pvParameters ){
         if ((nearby_letter > -1)) {
           play_letter(app_config.letters[nearby_letter].letter);
           ESP_LOGI(TAG, "letter %c", app_config.letters[nearby_letter].letter);
+
+          _fg = TFT_WHITE;
+          _bg = TFT_MAGENTA; // GREEN
+          sprintf(lcd_text, "Pos: Letter %c - (%d,%d), ", app_config.letters[nearby_letter].letter, current_position.pos.x, current_position.pos.y);
           leds_blink(0, 255, 0, 0, 50);
           //leds_setcolor(4, 100, 100, 100);
 
         } else {
           ESP_LOGI(TAG, "position %d %d, no letter", current_position.pos.x, current_position.pos.y);
+
+          _fg = TFT_WHITE;
+          _bg = TFT_YELLOW; // BLUE
+          sprintf(lcd_text, "Pos: No Letter - (%d,%d), ", current_position.pos.x, current_position.pos.y);
           //leds_setcolor(4, 0, 100, 0);
 
-        leds_blink(0, 255, 255, 0, 50);
+          leds_blink(0, 255, 255, 0, 50);
         }
       } else {
         ESP_LOGI(TAG, "ranges, no position");
         //leds_setcolor(4, 0, 100, 100);
         leds_blink(0, 0, 255, 0, 50);
+
+        _fg = TFT_BLACK;
+        _bg = TFT_LIGHTGREY;
+        sprintf(lcd_text, "Pos: Unknown");
       }
 
       receiving_ranges = false;
     } else {
-      ESP_LOGI(TAG, "No Ranges");
-      // TFT_fillRoundRect(10, 210, 100, 20, 0, TFT_WHITE);
-      // TFT_print("No Ranges", 10, 210);
+      _fg = TFT_BLACK;
+      _bg = TFT_CYAN; // RED
+      sprintf(lcd_text, "No Ranges");
+
+      ESP_LOGI(TAG, "%s", lcd_text);
+      
       leds_blink(255, 0, 0, 0, 50);
 
 
@@ -563,10 +581,8 @@ void watch_position( void *pvParameters ){
     last_position_counter++;
 
 
-    char lcd_text[128];
-    sprintf(lcd_text, "text %d", last_position_counter);
-    //TFT_fillRoundRect(10, 210, 100, 20, 0, TFT_WHITE);
-    //TFT_print(lcd_text, 10, 210);
+    TFT_fillRect(0, 205, DEFAULT_TFT_DISPLAY_WIDTH, 25, _bg);
+    TFT_print(lcd_text, 10, 210);
 
     esp_task_wdt_reset();
 

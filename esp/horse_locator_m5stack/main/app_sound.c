@@ -33,7 +33,9 @@
 #define TAG "APP_SOUND:"
 
 #define MAX_LETTERS 15
-#define MEM_CHUNK_SIZE 10240
+#define MEM_CHUNK_SIZE 20*1024
+
+static char samples_data[MEM_CHUNK_SIZE];
 
 
 #define STORAGE_NAMESPACE "sound"
@@ -138,10 +140,10 @@ int save_sound(char letter)
 
     char page_name[10];
 	int rlen;
-	int res;
+	//int res;
     int totalsize = 0;
     int pages = 0;
-	char* samples_data = malloc(MEM_CHUNK_SIZE);
+	//char* samples_data = malloc(MEM_CHUNK_SIZE);
 	do {
 		rlen=fread(samples_data,1,MEM_CHUNK_SIZE,f);
         totalsize += rlen;
@@ -172,7 +174,7 @@ int save_sound(char letter)
     if (err != ESP_OK) return err;
 
     // Close
-	free(samples_data);
+	//free(samples_data);
     nvs_close(my_handle);
     fclose(f);
 	f=NULL;
@@ -254,9 +256,9 @@ void aplay_raw(char* filename){
 			return;
 	}
 	int rlen;
-	int res;
+	//int res;
     int totalsize = 0;
-	char* samples_data = malloc(MEM_CHUNK_SIZE);
+	//char* samples_data = malloc(MEM_CHUNK_SIZE);
     size_t bytes_written = 0;
     ESP_LOGI(TAG, "aplay_raw read file");
 	do {
@@ -265,12 +267,13 @@ void aplay_raw(char* filename){
         //ESP_LOGD(TAG, "aplay_raw read %d bytes", rlen);
 		//datalen-=rlen;
 		//hal_i2s_write(0,samples_data,rlen,5000);
-        res = i2s_write(0, samples_data, rlen, &bytes_written, 1000);
+        //res = 
+        i2s_write(0, samples_data, rlen, &bytes_written, 1000);
 
         //ESP_LOGD(TAG, "aplay_raw i2s write %d, %d bytes", res, bytes_written);
 	} while(rlen==MEM_CHUNK_SIZE);
 	fclose(f);
-	free(samples_data);
+	//free(samples_data);
     ESP_LOGI(TAG, "aplay_raw i2s writen %d bytes", totalsize);
 	f=NULL;
     //esp_audio_vol_set(player, 0);
@@ -292,7 +295,7 @@ int play_from_memory(char l) {
     err = nvs_open(STORAGE_NAMESPACE, NVS_READONLY, &my_handle);
     if (err != ESP_OK) return err;
 
-    char* samples_data = malloc(MEM_CHUNK_SIZE);
+    //char* samples_data = malloc(MEM_CHUNK_SIZE);
     char page_name[10];
 
     ESP_LOGI(TAG, "play_from_memory wake");
@@ -313,7 +316,7 @@ int play_from_memory(char l) {
         err = i2s_write(0, samples_data, required_size, &bytes_written, 1000);
     }
 
-    free(samples_data);
+    //free(samples_data);
     ESP_LOGI(TAG, "play_from_memory sleep");
     audio_mute(true);
 
@@ -350,8 +353,8 @@ void setup_player(void)
         return ;
     }
     esp_audio_cfg_t cfg = {
-        .in_stream_buf_size = 10 * 1024,
-        .out_stream_buf_size = 6 * 1024,
+        .in_stream_buf_size = 6 * 1024,
+        .out_stream_buf_size = MEM_CHUNK_SIZE,//6 * 1024,
         .evt_que = NULL,
         .resample_rate = 41000,
         .hal = NULL,

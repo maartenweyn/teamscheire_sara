@@ -4,6 +4,8 @@
 #include <string.h>
 #include "esp_log.h"
 #include "cJSON.h"
+#include "app_sdcard.h"
+
 
 
 #define TAG "APP_CONFIG:"
@@ -24,6 +26,8 @@ void create_default_config() {
 
 
 esp_err_t save_config() {
+  init_sdcard();
+
   cJSON *x = NULL;
   cJSON *y = NULL;
   cJSON *z = NULL;

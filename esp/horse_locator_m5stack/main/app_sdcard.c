@@ -9,6 +9,7 @@
 #include "board_pins_config.h"
 
 #include "periph_sdcard.h"
+#include "tft.h"
 
 
 #define TAG "APP_SDCARD:"
@@ -17,12 +18,16 @@ extern esp_periph_set_handle_t set;
 static char debug_logfile[64];
 static FILE* log_file;
 
+#include "tft.h"
+
 esp_err_t init_sdcard() {
   ESP_LOGI(TAG, "Initializing SD card");
 
 #ifdef SDCARD_USE_SPI  
 
   ESP_LOGI(TAG, "Using SPI peripheral");
+
+  disp_deselect();
 
   sdmmc_host_t host = SDSPI_HOST_DEFAULT();
   sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
@@ -93,6 +98,10 @@ esp_err_t init_sdcard() {
   return ESP_FAIL;
 
   
+}
+
+esp_err_t deinit_sdcard() {
+  return esp_vfs_fat_sdmmc_unmount();
 }
 
 

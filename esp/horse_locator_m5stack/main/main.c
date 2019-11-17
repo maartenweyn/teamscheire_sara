@@ -77,13 +77,23 @@ esp_periph_handle_t led_handle = NULL;
 volatile bool play_sound = false;
 volatile bool store_config = false;
 
+static char lcd_text[128];
+
 static esp_err_t test_input_key_service_callback(periph_service_handle_t handle, periph_service_event_t *evt, void *ctx)
 {
-    char lcd_text[32];
+
     ESP_LOGI(TAG, "type=>%d, source=>%d, data=>%d, len=>%d", evt->type, (int)evt->source, (int)evt->data, evt->len);
 
     if (evt->len == BUTTON_A) {
-      if (evt->type == 4) { // long press 
+      if (evt->type == 2) {
+        int batt = getBatteryLevel();
+        ESP_LOGI(TAG, "Battery Level %d", batt);
+        sprintf(lcd_text, "Batt. %d%%", batt);
+        _fg = TFT_BLACK;
+        _bg = TFT_WHITE;
+        TFT_fillRoundRect(200, 50, 100, 20, 0, TFT_WHITE);
+        TFT_print(lcd_text, 200, 50);
+      } else if (evt->type == 4) { // long press 
         power_shutdown();
       }
     }
@@ -95,8 +105,10 @@ static esp_err_t test_input_key_service_callback(periph_service_handle_t handle,
           set_volume();
           ESP_LOGI(TAG, "Volume down %d", app_config.volume);
           sprintf(lcd_text, "Vol: %d%%", app_config.volume);
-          //TFT_fillRoundRect(10, 50, 100, 20, 0, TFT_WHITE);
-          //TFT_print(lcd_text, 10, 50);
+          _fg = TFT_BLACK;
+          _bg = TFT_WHITE;
+          TFT_fillRoundRect(10, 50, 100, 20, 0, _bg);
+          TFT_print(lcd_text, 10, 50);
           play_sound = true;
         }
       } else if (evt->type == 4) { // long press 
@@ -111,10 +123,15 @@ static esp_err_t test_input_key_service_callback(periph_service_handle_t handle,
           set_volume();
           ESP_LOGI(TAG, "Volume up %d", app_config.volume);
           sprintf(lcd_text, "Vol: %d%%", app_config.volume);
-          //TFT_fillRoundRect(10, 50, 100, 20, 0, TFT_WHITE);
-          //TFT_print(lcd_text, 10, 50);
+          _fg = TFT_BLACK;
+          _bg = TFT_WHITE;
+          TFT_fillRoundRect(10, 50, 100, 20, 0, _bg);
+          TFT_print(lcd_text, 10, 50);
           play_sound = true;
         }
+      } else if (evt->type == 4) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        power_shutdown();
       }
     }
     return ESP_OK;
@@ -199,8 +216,16 @@ void lcdInit(void){
 	TFT_resetclipwin();
   TFT_fillScreen(TFT_WHITE);
 
+  TFT_fillRect(0, 110, DEFAULT_TFT_DISPLAY_WIDTH, 60, TFT_CYAN);
+
+
+  _bg = TFT_CYAN;
+  _fg = TFT_WHITE;
   TFT_print("SarAssist", CENTER, CENTER);
   TFT_print("Team Scheire", CENTER, LASTY+25);
+
+  _fg = TFT_BLACK;
+  _bg = TFT_WHITE;
 
   
 	TFT_setFont(SMALL_FONT, NULL);
@@ -208,15 +233,23 @@ void lcdInit(void){
   TFT_print("VOL DOWN", 27, 2);
   TFT_print("VOL UP", 138, 2);
   TFT_print("STORE CONFIG", 10, 20);
-  TFT_print("POWER OFF", 225, 2);
+
+  TFT_print("BATTERY", 230, 2);
+  TFT_print("POWER OFF", 225, 20);
 
   
 	TFT_setFont(DEJAVU18_FONT, NULL);
 
+  sprintf(lcd_text, "Vol: %d%%", app_config.volume);
+  TFT_fillRoundRect(10, 50, 100, 20, 0, TFT_WHITE);
+  TFT_print(lcd_text, 10, 50);
+
+  TFT_fillRect(0, 205, DEFAULT_TFT_DISPLAY_WIDTH, 25, TFT_LIGHTGREY);
+
   // TFT_fillRect(10, 210, 100, 20, TFT_WHITE);
   // TFT_print("No Ranges", 10, 210);
 
-  disp_select();
+  //disp_deselect();
 }
 
 
@@ -243,6 +276,28 @@ void app_main()
   esp_periph_config_t periph_cfg = DEFAULT_ESP_PHERIPH_SET_CONFIG();
   set = esp_periph_set_init(&periph_cfg);
 
+  ESP_LOGI(TAG, "[ 1 ] Mount sdcard");
+  ESP_LOGI(TAG, "[1.1] Start and wait for SDCARD to mount");
+
+  #ifndef SKIP_SD_CARD
+  init_sdcard();
+  #endif
+
+  load_config();
+
+  init_letter_storage();
+  save_sound('A');
+  save_sound('F');
+  save_sound('B');
+  save_sound('M');
+  save_sound('C');
+  save_sound('H');
+  save_sound('E');
+  save_sound('K');
+  save_sound('X');
+
+  deinit_sdcard();
+
 
   lcdInit();
 
@@ -251,45 +306,13 @@ void app_main()
   leds_init();
   leds_setcolor(255, 0, 0, 0);
 
-  // periph_led_cfg_t led_cfg = {
-  //   .led_speed_mode = LEDC_LOW_SPEED_MODE,
-  //   .led_duty_resolution = LEDC_TIMER_10_BIT,
-  //   .led_timer_num = LEDC_TIMER_0,
-  //   .led_freq_hz = 5000,
-  // };
-  // led_handle = periph_led_init(&led_cfg);
-  //   esp_periph_start(set, led_handle);
-
-  // periph_led_blink(led_handle, get_green_led_gpio(), 500, 500, true, -1);
-
-  ESP_LOGI(TAG, "[ 1 ] Mount sdcard");
-  ESP_LOGI(TAG, "[1.1] Start and wait for SDCARD to mount");
-
-  #ifndef SKIP_SD_CARD
-  init_sdcard();
-  #endif
-
   leds_blink(0, 0, 255, 0, 500);
 
-  load_config();
 
   ESP_LOGI(TAG, "[ 2 ] Setup Audio");
 
   setup_player();
   
-  init_letter_storage();
-
-  play_letter('A');
-  play_letter('F');
-  play_letter('B');
-  play_letter('M');
-  play_letter('C');
-  play_letter('H');
-  play_letter('E');
-  play_letter('K');
-  play_letter('X');
-
-
 
   // Initialize Button peripheral
   periph_button_cfg_t btn_cfg = {
@@ -335,7 +358,11 @@ void app_main()
   // esp_err_t ret = dac_output_voltage(DAC_CHANNEL_1, 0);
   // ESP_LOGI(TAG, "dac_output_voltage %d", ret);
 
-  ESP_LOGI(TAG, "Battery Level %d", getBatteryLevel());
+  int batt = getBatteryLevel();
+  ESP_LOGI(TAG, "Battery Level %d", batt);
+  sprintf(lcd_text, "Batt. %d%%", batt);
+  TFT_fillRoundRect(200, 50, 100, 20, 0, TFT_WHITE);
+  TFT_print(lcd_text, 200, 50);
 
   //power_shutdown();
 
