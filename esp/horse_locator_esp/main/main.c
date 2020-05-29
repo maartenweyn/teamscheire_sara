@@ -36,7 +36,8 @@ app_config_t app_config = {
   .sensor_height = DEF_SENSOR_HEIGHT,
   .particle_filter = {
     .nr_of_particles = DEF_NR_OF_PARTICLES,
-    .max_speed = DEF_MAX_SPEED
+    .max_speed = DEF_MAX_SPEED,
+    .UWB_std2 = DEF_UWB_STD2
   },
   .field_size = {DEF_FIELD_SIZE_X, DEF_FIELD_SIZE_Y, 300},
   .node_positions = {{0, 0, 100}, {2000, 0, 100},{2000, 4000, 100},{0, 4000, 100},{2000, 2000, 100},{0, 2000, 100}}

@@ -2,12 +2,9 @@
 #include "main.h"
 #include "app_config.h"
 #include "uwb_parser.h"
-#include "app_sound.h"
-#include "app_sdcard.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "app_leds.h"
 
 #include "esp_task_wdt.h"
 
@@ -16,8 +13,10 @@
 #include <math.h>
 #include <string.h>
 
-
+// Uncomment this to get all particle debug
 #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+
+
 #include "esp_log.h"
 
 #define TAG "LOCALIZ: "
@@ -97,7 +96,7 @@ static void update_weights() {
         float w = DEFAULT_WEIGHT + exp(-0.5 * (R*R) / app_config.particle_filter.UWB_std2);
         particles[i].weight *= w;
 
-        ESP_LOGD(TAG, "(%d, %d) vs  %d (r=%d)->  R=%f (%f): w=%f, pw=%.20f", particles[i].x, particles[i].y, j, meas_ranges[j], sqrt(dx * dx + dy * dy + dz * dz), R, w, particles[i].weight);
+        ESP_LOGD(TAG, "%d (%d, %d) vs  %d (r=%d)->  R=%f (%f): w=%f, pw=%.20f", i, particles[i].x, particles[i].y, j, meas_ranges[j], sqrt(dx * dx + dy * dy + dz * dz), R, w, particles[i].weight);
       }
     }
 
@@ -297,9 +296,11 @@ void uwb_test_range() {
   //int ranges[6] = {1639, 102, 3558, 3614, 2171, 1692};
   //int ranges[6] = {314, -1, 3965, -1, 1542, 2365};  
   //int ranges[6] = {1134, -1, -1, -1, 1865, -1};
-  //int ranges[6] = {631, 102, 3910, 3517, 1764, 2214}; 
-  int ranges[6] = {100, -1, -1, -1, -1, -1};  
-  int counter[6] = {0,15,14,13,12,11};
+  // int ranges[6] = {631, 102, 3910, 3517, 1764, 2214}; 
+  // int counter[6] = {0,1,2,3,4,5};
+
+  int ranges[6] = {100, 0, 0, 0, 0, 0}; 
+  int counter[6] = {0,100,100,100,100,100};
 
   memcpy(meas_ranges, ranges, sizeof(ranges));
   memcpy(meas_absence_counter, counter, sizeof(ranges));
