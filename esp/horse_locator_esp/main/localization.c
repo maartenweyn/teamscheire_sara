@@ -16,9 +16,8 @@
 #include <math.h>
 #include <string.h>
 
-#include "tft.h"
 
-//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 
 #define TAG "LOCALIZ: "
@@ -28,9 +27,6 @@
 #define M_PI 3.14159265358979323846
 #define RESAMPLE_PERC 0.95
 #define DEFAULT_WEIGHT 0.00001
-
-static char lcd_text[128];
-
 
 int meas_ranges[6] = {-1,-1,-1,-1,-1,-1};
 int meas_absence_counter[6] = {100,100,100,100,100,100};
@@ -277,8 +273,8 @@ bool processMeasurement () {
     }
   }
 
-  if (app_config.store_ranges)
-    store_ranges(range_string);
+  // if (app_config.store_ranges)
+  //   store_ranges(range_string);
   
   return true;
 }
@@ -289,87 +285,12 @@ void initialize_localization_engine() {
   prev_measurement_ts = xTaskGetTickCount();
 }
 
-void esp_task_wdt_isr_user_handler(void)
-{
-		printf("esp_task_wdt_isr_user_handler");
-}
-
-void watch_position( void *pvParameters ){
-  esp_task_wdt_add(NULL);
-  esp_task_wdt_status(NULL);
-
-  while(1) {
-
-    if (play_sound) {
-      play_sound = false;
-      play_letter('A');
-    }
-    if (store_config) {
-      store_config = false;
-      save_config();
-      leds_blink(0, 255, 0, 0, 50);
-    }
-
-    if (receiving_ranges) {
-      if ((last_position_counter < ALLOW_DELAY)) {
-        ESP_LOGI(TAG, "current_position: (%d, %d) std (%d, %d), valid: %d, counter %d", current_position.pos.x, current_position.pos.y, current_position.std.x, current_position.std.y, current_position.is_valid, last_position_counter);
-
-        if ((nearby_letter > -1)) {
-          play_letter(app_config.letters[nearby_letter].letter);
-          ESP_LOGI(TAG, "letter %c", app_config.letters[nearby_letter].letter);
-
-          _fg = TFT_WHITE;
-          _bg = TFT_MAGENTA; // GREEN
-          sprintf(lcd_text, "Pos: Letter %c - (%d,%d), ", app_config.letters[nearby_letter].letter, current_position.pos.x, current_position.pos.y);
-          leds_blink(0, 255, 0, 0, 50);
-          //leds_setcolor(4, 100, 100, 100);
-
-        } else {
-          ESP_LOGI(TAG, "position %d %d, no letter", current_position.pos.x, current_position.pos.y);
-
-          _fg = TFT_WHITE;
-          _bg = TFT_YELLOW; // BLUE
-          sprintf(lcd_text, "Pos: No Letter - (%d,%d), ", current_position.pos.x, current_position.pos.y);
-          //leds_setcolor(4, 0, 100, 0);
-
-          leds_blink(0, 255, 255, 0, 50);
-        }
-      } else {
-        ESP_LOGI(TAG, "ranges, no position");
-        //leds_setcolor(4, 0, 100, 100);
-        leds_blink(0, 0, 255, 0, 50);
-
-        _fg = TFT_BLACK;
-        _bg = TFT_LIGHTGREY;
-        sprintf(lcd_text, "Pos: Unknown");
-      }
-
-      receiving_ranges = false;
-    } else {
-      _fg = TFT_BLACK;
-      _bg = TFT_CYAN; // RED
-      sprintf(lcd_text, "No Ranges");
-
-      ESP_LOGI(TAG, "%s", lcd_text);
-      
-      leds_blink(255, 0, 0, 0, 50);
+// void esp_task_wdt_isr_user_handler(void)
+// {
+// 		ESP_LOGD(TAG,"esp_task_wdt_isr_user_handler");
+// }
 
 
-      //play_letter('x');
-      //leds_setcolor(4, 100, 0, 0);
-    }
-    
-    last_position_counter++;
-
-
-    TFT_fillRect(0, 205, DEFAULT_TFT_DISPLAY_WIDTH, 25, _bg);
-    TFT_print(lcd_text, 10, 210);
-
-    esp_task_wdt_reset();
-
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
-}
 
 void uwb_test_range() {
 
@@ -406,16 +327,15 @@ void uwb_test_range() {
 void locator_task( void *pvParameters ){
   (void) pvParameters;
     
-  xTaskCreatePinnedToCore(watch_position, "watch_position", 4096, NULL, 20, NULL, 1);
 
 
-  //uwb_test_range();
+  uwb_test_range();
   //bool got_position = uwb_parser_check_data();
 
   while(1) {
     //bool got_position = uwb_parser_check_data();
-    uwb_parser_check_data();
-    // vTaskSuspend(NULL);
+    //uwb_parser_check_data();
+     vTaskSuspend(NULL);
   }
 
  }

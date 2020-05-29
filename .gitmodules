@@ -2,3 +2,6 @@
 	path = esp/lib/esp-adf
 	url = https://github.com/maartenweyn/esp-adf.git
 
+[submodule "esp/lib/esp-idf"]
+	path = esp/lib/esp-idf
+	url = https://github.com/espressif/esp-idf.git
