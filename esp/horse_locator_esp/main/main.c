@@ -22,6 +22,7 @@
 
 #include "localization.h"
 #include "uwb_parser.h"
+#include "app_ble.h"
 
 #include "app_config.h"
 #define TAG "main:"
@@ -56,17 +57,18 @@ void app_main()
   }
 
   err = load_config();
-  
   if (err != ESP_OK) ESP_LOGE(TAG, "Error (%s) reading data from NVS!\n", esp_err_to_name(err));
 
+  err = init_ble();
+  if (err != ESP_OK) ESP_LOGE(TAG, "Error (%s) loading ble!\n", esp_err_to_name(err));
 
-  initialize_localization_engine();
+  //initialize_localization_engine();
 
   //uwb_parser_init();   
 
 
 
-  xTaskCreate(locator_task, "locator_task", 4096, NULL, 5, NULL);
+  //xTaskCreate(locator_task, "locator_task", 4096, NULL, 5, NULL);
   vTaskSuspend(NULL);
 
   //never goto here
