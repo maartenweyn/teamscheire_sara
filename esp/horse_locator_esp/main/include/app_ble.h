@@ -1,47 +1,41 @@
+#ifndef APP_BLE_H
+#define APP_BLE_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "esp_err.h"
+#include "main.h"
 
-/*
- * DEFINES
- ****************************************************************************************
- */
-#define SUPPORT_HEARTBEAT
-#define SPP_DEBUG_MODE
+#define DEVICE_NAME "HORSE_LOCATOR"
 
-#define spp_sprintf(s,...)         sprintf((char*)(s), ##__VA_ARGS__)
-#define SPP_DATA_MAX_LEN           (512)
-#define SPP_CMD_MAX_LEN            (20)
-#define SPP_STATUS_MAX_LEN         (20)
-#define SPP_DATA_BUFF_MAX_LEN      (2*1024)
-///Attributes State Machine
-enum{
-    SPP_IDX_SVC,
+#define DATA_BUFFER_LENGTH  512
 
-    SPP_IDX_SPP_DATA_RECV_CHAR,
-    SPP_IDX_SPP_DATA_RECV_VAL,
+/* Attributes State Machine */
 
-    SPP_IDX_SPP_DATA_NOTIFY_CHAR,
-    SPP_IDX_SPP_DATA_NTY_VAL,
-    SPP_IDX_SPP_DATA_NTF_CFG,
+enum
+{
+    IDX_SVC,
+    
+    IDX_CHAR_POS,
+    IDX_CHAR_VAL_POS,
+    IDX_CHAR_CFG_POS,
 
-    SPP_IDX_SPP_COMMAND_CHAR,
-    SPP_IDX_SPP_COMMAND_VAL,
+    IDX_CHAR_POS_STR,
+    IDX_CHAR_VAL_POS_STR,
+    IDX_CHAR_CFG_POS_STR,
 
-    SPP_IDX_SPP_STATUS_CHAR,
-    SPP_IDX_SPP_STATUS_VAL,
-    SPP_IDX_SPP_STATUS_CFG,
+    // IDX_CHAR_B,
+    // IDX_CHAR_VAL_B,
 
-#ifdef SUPPORT_HEARTBEAT
-    SPP_IDX_SPP_HEARTBEAT_CHAR,
-    SPP_IDX_SPP_HEARTBEAT_VAL,
-    SPP_IDX_SPP_HEARTBEAT_CFG,
-#endif
+    // IDX_CHAR_C,
+    // IDX_CHAR_VAL_C,
+    // IDX_CHAR_CFG_C,
 
-    SPP_IDX_NB,
+    IDX_NB,
 };
 
+typedef void (*new_orientation_cb_t)(int16_t omega, int16_t phi, int16_t psi, int16_t xm, int16_t ym, int16_t zm);
 
+esp_err_t start_bluetooth();
+void set_new_orientation_cb(new_orientation_cb_t cb);
+esp_err_t set_new_location();
 
-esp_err_t init_ble(void);
+#endif

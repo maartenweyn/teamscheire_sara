@@ -27,10 +27,6 @@
 
 #define NR_OF_LETTERS 15
 
-
-#define CONFIG_FILE "/sdcard/config.cfg"
-
-
 typedef struct {
   int x;
   int y;
@@ -51,7 +47,6 @@ typedef struct {
 
 
 extern int meas_ranges[];
-//xtern int avg_meas_ranges[];
 extern int meas_counter[];
 extern int meas_absence_counter[];
 

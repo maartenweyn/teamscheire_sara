@@ -59,7 +59,7 @@ void app_main()
   err = load_config();
   if (err != ESP_OK) ESP_LOGE(TAG, "Error (%s) reading data from NVS!\n", esp_err_to_name(err));
 
-  err = init_ble();
+  err = start_bluetooth();
   if (err != ESP_OK) ESP_LOGE(TAG, "Error (%s) loading ble!\n", esp_err_to_name(err));
 
   //initialize_localization_engine();
