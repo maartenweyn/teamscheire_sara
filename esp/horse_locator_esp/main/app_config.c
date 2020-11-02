@@ -5,6 +5,7 @@
 #include "esp_log.h"
 #include "nvs.h"
 #include "nvs_flash.h"
+#include "esp_log.h"
 
 const position_t default_node_positions[6] = {{0, 0, 100}, {2000, 0, 100},{2000, 4000, 100},{0, 4000, 100},{2000, 2000, 100},{0, 2000, 100}};
 
@@ -48,7 +49,7 @@ esp_err_t load_config(void)
     err = nvs_get_blob(my_handle, "app_config", NULL, &required_size);
     if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
     if (required_size == 0) {
-        printf("Nothing saved yet! - create default config\n");
+        ESP_LOGE(TAG, "Nothing saved yet! - create default config\n");
         nvs_close(my_handle);
 
         create_default_config();
@@ -60,10 +61,10 @@ esp_err_t load_config(void)
           if (err != ESP_OK) {
               return err;
           }   
-          printf("Loaded Config\n");
+          ESP_LOGI(TAG, "Loaded Config\n");
       } else {
         // get default values
-        printf("Size does not match!- create default config\n");
+        ESP_LOGE(TAG, "Size does not match!- create default config\n");
         nvs_close(my_handle);
 
         create_default_config();

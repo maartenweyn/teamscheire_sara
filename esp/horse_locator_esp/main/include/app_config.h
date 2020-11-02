@@ -18,6 +18,14 @@
 #define DEF_SSID              "teamscheire"
 #define DEF_passwd            "0123456789"
 
+
+
+
+#define	NEOPIXEL_PIN	13
+#define	NR_LEDS		5
+#define	NEOPIXEL_WS2812
+#define	NEOPIXEL_RMT_CHANNEL		RMT_CHANNEL_0
+
 typedef struct {
   int nr_of_particles;
   int max_speed;

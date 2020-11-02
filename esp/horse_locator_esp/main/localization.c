@@ -2,6 +2,7 @@
 #include "main.h"
 #include "app_config.h"
 #include "uwb_parser.h"
+#include "app_ble.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -259,6 +260,9 @@ bool processMeasurement () {
 
   ESP_LOGD(TAG, "current_position: (%d, %d) std (%d, %d), valid: %d, counter %d", current_position.pos.x, current_position.pos.y, current_position.std.x, current_position.std.y, current_position.is_valid, last_position_counter);
 
+
+
+
   if (current_position.is_valid) {
     last_position_counter = 0;
 
@@ -299,29 +303,30 @@ void uwb_test_range() {
   // int ranges[6] = {631, 102, 3910, 3517, 1764, 2214}; 
   // int counter[6] = {0,1,2,3,4,5};
 
-  int ranges[6] = {100, 0, 0, 0, 0, 0}; 
+  int ranges[6] = {100, -1, -1, -1, -1, -1}; 
   int counter[6] = {0,100,100,100,100,100};
 
-  memcpy(meas_ranges, ranges, sizeof(ranges));
-  memcpy(meas_absence_counter, counter, sizeof(ranges));
+  while (1) 
+  {
+    memcpy(meas_ranges, ranges, sizeof(ranges));
+    memcpy(meas_absence_counter, counter, sizeof(ranges));
 
+    set_new_ranges(ranges);
 
-  uint32_t ts = xTaskGetTickCount();
-  processMeasurement();
+    uint32_t ts = xTaskGetTickCount();
+    processMeasurement();
 
-  ESP_LOGI(TAG, "PF precessing %d ms", xTaskGetTickCount() - ts);
-  ESP_LOGI(TAG, "current_position: (%d, %d) std (%d, %d), valid: %d, counter %d", current_position.pos.x, current_position.pos.y, current_position.std.x, current_position.std.y, current_position.is_valid, last_position_counter);
+    ble_set_new_location();
 
+    ble_push_particles(new_particles, app_config.particle_filter.nr_of_particles);
+    ESP_LOGI(TAG, "ble_push_particles %d", app_config.particle_filter.nr_of_particles);
 
-  ts = xTaskGetTickCount();
-  processMeasurement();  
-  ESP_LOGI(TAG, "PF precessing %d ms", xTaskGetTickCount() - ts);
-  ESP_LOGI(TAG, "current_position: (%d, %d) std (%d, %d), valid: %d, counter %d", current_position.pos.x, current_position.pos.y, current_position.std.x, current_position.std.y, current_position.is_valid, last_position_counter);
+    ESP_LOGI(TAG, "PF processing %d ms", xTaskGetTickCount() - ts);
+    ESP_LOGI(TAG, "current_position: (%d, %d) std (%d, %d), valid: %d, counter %d", current_position.pos.x, current_position.pos.y, current_position.std.x, current_position.std.y, current_position.is_valid, last_position_counter);
 
-  ts = xTaskGetTickCount();
-  processMeasurement();  
-  ESP_LOGI(TAG, "PF precessing %d ms", xTaskGetTickCount() - ts);
-  ESP_LOGI(TAG, "current_position: (%d, %d) std (%d, %d), valid: %d, counter %d", current_position.pos.x, current_position.pos.y, current_position.std.x, current_position.std.y, current_position.is_valid, last_position_counter);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
+  }
 
 }
 

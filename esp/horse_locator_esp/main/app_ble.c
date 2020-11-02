@@ -16,6 +16,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "app_config.h"
+
 #define GATTS_TABLE_TAG "GATTS_TABLE"
 
 #define PROFILE_NUM                 1
@@ -26,7 +28,7 @@
 /* The max length of characteristic value. When the GATT client performs a write or prepare write operation,
 *  the data length must be less than GATTS_CHAR_VAL_LEN_MAX. 
 */
-#define GATTS_CHAR_VAL_LEN_MAX      50
+#define GATTS_CHAR_VAL_LEN_MAX      512
 #define PREPARE_BUF_MAX_SIZE        1024
 #define CHAR_DECLARATION_SIZE       (sizeof(uint8_t))
 
@@ -54,7 +56,7 @@ static uint8_t raw_adv_data[] = {
         /* tx power*/
         0x02, 0x0a, 0xeb,
         /* service uuid */
-        0x05, 0x03, 0xF0, 0xFF,  0xF1, 0xFF,// Survice UID 0xFFF0 and FFF1
+        0x03, 0x03, 0xF0, 0xFF,// Survice UID 0xFFF0, FFF1 and FFF2
         /* device name */
         0x0d, 0x09, 'H', 'O', 'R', 'S', 'E', 'L', 'O', 'C', 'A', 'T', 'O','R'
 };
@@ -104,24 +106,32 @@ static struct gatts_profile_inst profile_tab[PROFILE_NUM] = {
 
 /* Service */
 static const uint16_t GATTS_SERVICE_UUID_LOCALIZATION     = 0xFFF0;
-// static const uint16_t GATTS_SERVICE_UUID_CONFIGURATION      = 0xFFF1;
-static const uint16_t GATTS_CHAR_UUID_LOCALIZATION_POSTITION       = 0xFF01;
-static const uint16_t GATTS_CHAR_UUID_LOCALIZATION_POSTITION_STRING       = 0xFF02;
 
-// static const uint16_t GATTS_CHAR_UUID_GET_ORI       = 0xFF02;
-// static const uint16_t GATTS_CHAR_UUID_SENSOR_ORI       = 0xFF03;
+//GATTS_SERVICE_UUID_LOCALIZATION Characteristics
+static const uint16_t GATTS_CHAR_UUID_LOCALIZATION_POSTITION              = 0xF001;
+static const uint16_t GATTS_CHAR_UUID_LOCALIZATION_POSTITION_STRING       = 0xF002;
+
+//GATTS_SERVICE_UUID_CONFIGURATION Characteristics
+static const uint16_t GATTS_CHAR_UUID_CONFIGURATION_NODE_POSITIONS        = 0xF101;
+
+//GATTS_SERVICE_UUID__DEBUG Characteristics
+static const uint16_t GATTS_CHAR_UUID_CONFIGURATION_DEBUG_RANGES            = 0xF201;
+static const uint16_t GATTS_CHAR_UUID_CONFIGURATION_DEBUG_PARTICLES         = 0xF202;
 
 
 static const uint16_t primary_service_uuid         = ESP_GATT_UUID_PRI_SERVICE;
 static const uint16_t character_declaration_uuid   = ESP_GATT_UUID_CHAR_DECLARE;
 static const uint16_t character_client_config_uuid = ESP_GATT_UUID_CHAR_CLIENT_CONFIG;
-//static const uint8_t char_prop_read_write          =  ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE;
+static const uint8_t char_prop_read_write          =  ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE;
 static const uint8_t char_prop_read_notify         =  ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
 //static const uint8_t char_prop_write               = ESP_GATT_CHAR_PROP_BIT_WRITE;
 //static const uint8_t char_prop_read_write_notify   = ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
 static const uint8_t orientation_notifcation_ccc[2]      = {0x00, 0x00};
-// Actual value set by actuator
-static char current_position_string[50];
+static char current_position_string[50] = "(0,0,0) - not initialzed";
+static uint8_t uwb_ranges[6*4] = {0,};
+static uint8_t ble_particles[50*10] = {0,};
+
+app_config_t app_config;
 //static uint8_t orientation_act_value[12]       = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 // Orientation angles calculated from sensor
 // static uint8_t orientation_sensor_value[6]    = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -129,29 +139,21 @@ static char current_position_string[50];
 static bool enable_location_act_ntf = false;
 static bool enable_location_string_act_ntf = false;
 static bool enable_orientation_sensor_ntf = false;
+static bool enable_debug_ranges_act_ntf = false;
+static bool enable_debug_particles_act_ntf = false;
 
 
 /* Full Database Description - Used to add attributes into the database */
 static const esp_gatts_attr_db_t gatt_db[IDX_NB] =
 {
-    // // Service Declaration : GATTS_SERVICE_UUID_LOCALIZATION
-    // [IDX_SVC]        =
-    // {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&primary_service_uuid, ESP_GATT_PERM_READ,
-    //   sizeof(uint16_t), sizeof(GATTS_SERVICE_UUID_LOCALIZATION), (uint8_t *)&GATTS_SERVICE_UUID_LOCALIZATION}},
 
-
-    // /* Characteristic Declaration */
-    // [IDX_CHAR_A]     =
-    // {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_declaration_uuid, ESP_GATT_PERM_READ,
-    //   CHAR_DECLARATION_SIZE, CHAR_DECLARATION_SIZE, (uint8_t *)&char_prop_read_notify}},
-
-    // Service Declaration : GATTS_SERVICE_UUID_NAVIGATION
-    [IDX_SVC]        =
+    // Service Declaration : GATTS_SERVICE_UUID_LOCALIZATION
+    [IDX_SVC_POS]        =
     {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&primary_service_uuid, ESP_GATT_PERM_READ,
       sizeof(uint16_t), sizeof(GATTS_SERVICE_UUID_LOCALIZATION), (uint8_t *)&GATTS_SERVICE_UUID_LOCALIZATION}},
 
 
-    /* Characteristic Declaration */
+    /* Characteristic Declaration  GATTS_CHAR_UUID_LOCALIZATION_POSTITION */
     [IDX_CHAR_POS]     =
     {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_declaration_uuid, ESP_GATT_PERM_READ,
       CHAR_DECLARATION_SIZE, CHAR_DECLARATION_SIZE, (uint8_t *)&char_prop_read_notify}},
@@ -166,7 +168,7 @@ static const esp_gatts_attr_db_t gatt_db[IDX_NB] =
     {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_client_config_uuid, ESP_GATT_PERM_READ|ESP_GATT_PERM_WRITE,
       sizeof(uint16_t),sizeof(orientation_notifcation_ccc), (uint8_t *)orientation_notifcation_ccc}},
 
-      /* Characteristic Declaration */
+    /* Characteristic Declaration  GATTS_CHAR_UUID_LOCALIZATION_POSTITION_STRING*/
     [IDX_CHAR_POS_STR]     =
     {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_declaration_uuid, ESP_GATT_PERM_READ,
       CHAR_DECLARATION_SIZE, CHAR_DECLARATION_SIZE, (uint8_t *)&char_prop_read_notify}},
@@ -182,33 +184,57 @@ static const esp_gatts_attr_db_t gatt_db[IDX_NB] =
       sizeof(uint16_t),sizeof(orientation_notifcation_ccc), (uint8_t *)orientation_notifcation_ccc}},
 
 
-    // /* Characteristic Declaration */
-    // [IDX_CHAR_B]      =
-    // {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_declaration_uuid, ESP_GATT_PERM_READ,
-    //   CHAR_DECLARATION_SIZE, CHAR_DECLARATION_SIZE, (uint8_t *)&char_prop_read_notify}},
-
-    // /* Characteristic Value */
-    // [IDX_CHAR_VAL_B]  =
-    // {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&GATTS_CHAR_UUID_GET_ORI, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
-    //   GATTS_CHAR_VAL_LEN_MAX, sizeof(orientation_act_value), (uint8_t *)orientation_act_value}},
 
 
 
 
-    // /* Characteristic Declaration */
-    // [IDX_CHAR_C]      =
-    // {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_declaration_uuid, ESP_GATT_PERM_READ,
-    //   CHAR_DECLARATION_SIZE, CHAR_DECLARATION_SIZE, (uint8_t *)&char_prop_read_notify}},
+       /* Characteristic Declaration  GATTS_CHAR_UUID_LOCALIZATION_POSTITION */
+    [IDX_CHAR_CONF_NODES_POS]     =
+    {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_declaration_uuid, ESP_GATT_PERM_READ,
+      CHAR_DECLARATION_SIZE, CHAR_DECLARATION_SIZE, (uint8_t *)&char_prop_read_write}},
 
-    // /* Characteristic Value */
-    // [IDX_CHAR_VAL_C]  =
-    // {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&GATTS_CHAR_UUID_TEST_C, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
-    //   GATTS_CHAR_VAL_LEN_MAX, sizeof(orientation_sensor_value), (uint8_t *)orientation_sensor_value}},
+    /* Characteristic Value */
+    [IDX_CHAR_VAL_CONF_NODES_POS] =
+    {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&GATTS_CHAR_UUID_CONFIGURATION_NODE_POSITIONS, ESP_GATT_PERM_READ|ESP_GATT_PERM_WRITE,
+      GATTS_CHAR_VAL_LEN_MAX, sizeof(app_config.node_positions), (uint8_t *)app_config.node_positions}},
 
-    // // Characteristic - Client Characteristic Configuration Descriptor
-    // [IDX_CHAR_CFG_C]           =
-    // {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_client_config_uuid, ESP_GATT_PERM_READ|ESP_GATT_PERM_WRITE,
-    //   sizeof(uint16_t),sizeof(orientation_notifcation_ccc), (uint8_t *)orientation_notifcation_ccc}},
+
+
+
+
+       /* Characteristic Declaration  GATTS_CHAR_UUID_CONFIGURATION_DEBUG_RANGES */
+    [IDX_CHAR_CONF_DEBUG_RANGES]     =
+    {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_declaration_uuid, ESP_GATT_PERM_READ,
+      CHAR_DECLARATION_SIZE, CHAR_DECLARATION_SIZE, (uint8_t *)&char_prop_read_notify}},
+
+    /* Characteristic Value */
+    [IDX_CHAR_VAL_DEBUG_RANGES] =
+    {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&GATTS_CHAR_UUID_CONFIGURATION_DEBUG_RANGES, ESP_GATT_PERM_READ|ESP_GATT_PERM_WRITE,
+      GATTS_CHAR_VAL_LEN_MAX, sizeof(uwb_ranges), (uint8_t *)uwb_ranges}},
+
+    // Client Characteristic Configuration Notification Descriptor
+    [IDX_CHAR_CFG_DEBUG_RANGES]           =
+    {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_client_config_uuid, ESP_GATT_PERM_READ|ESP_GATT_PERM_WRITE,
+      sizeof(uint16_t),sizeof(orientation_notifcation_ccc), (uint8_t *)orientation_notifcation_ccc}},
+
+
+
+
+        [IDX_CHAR_CONF_DEBUG_PARTICLES]     =
+    {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_declaration_uuid, ESP_GATT_PERM_READ,
+      CHAR_DECLARATION_SIZE, CHAR_DECLARATION_SIZE, (uint8_t *)&char_prop_read_notify}},
+
+    /* Characteristic Value */
+    [IDX_CHAR_VAL_DEBUG_PARTICLES] =
+    {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&GATTS_CHAR_UUID_CONFIGURATION_DEBUG_PARTICLES, ESP_GATT_PERM_READ|ESP_GATT_PERM_WRITE,
+      GATTS_CHAR_VAL_LEN_MAX, 500, ble_particles}},
+
+
+
+    // Client Characteristic Configuration Notification Descriptor
+    [IDX_CHAR_CFG_DEBUG_PARTICLES]           =
+    {{ESP_GATT_AUTO_RSP}, {ESP_UUID_LEN_16, (uint8_t *)&character_client_config_uuid, ESP_GATT_PERM_READ|ESP_GATT_PERM_WRITE,
+      sizeof(uint16_t),sizeof(orientation_notifcation_ccc), (uint8_t *)orientation_notifcation_ccc}},
 
 };
 
@@ -381,8 +407,36 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                         ESP_LOGE(GATTS_TABLE_TAG, "unknown descr value");
                         esp_log_buffer_hex(GATTS_TABLE_TAG, param->write.value, param->write.len);
                     }
-                
-
+                } else if (handle_table[IDX_CHAR_CFG_DEBUG_RANGES] == param->write.handle && param->write.len == 2){
+                    uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
+                    if (descr_value == 0x0001){
+                        ESP_LOGI(GATTS_TABLE_TAG, "notify enable");
+                        enable_debug_ranges_act_ntf = true;
+                        esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, handle_table[IDX_CHAR_CFG_DEBUG_RANGES],
+                                                sizeof(uwb_ranges), (uint8_t*)uwb_ranges, false);
+                    } 
+                    else if (descr_value == 0x0000){
+                        ESP_LOGI(GATTS_TABLE_TAG, "notify disable ");
+                        enable_debug_ranges_act_ntf = false;
+                    }else{
+                        ESP_LOGE(GATTS_TABLE_TAG, "unknown descr value");
+                        esp_log_buffer_hex(GATTS_TABLE_TAG, param->write.value, param->write.len);
+                    }
+                } else if (handle_table[IDX_CHAR_CFG_DEBUG_PARTICLES] == param->write.handle && param->write.len == 2){
+                    uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
+                    if (descr_value == 0x0001){
+                        ESP_LOGI(GATTS_TABLE_TAG, "notify enable");
+                        enable_debug_particles_act_ntf = true;
+                        // esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, handle_table[IDX_CHAR_CFG_DEBUG_PARTICLES],
+                                                // sizeof(uwb_ranges), (uint8_t*)uwb_ranges, false);
+                    } 
+                    else if (descr_value == 0x0000){
+                        ESP_LOGI(GATTS_TABLE_TAG, "notify disable ");
+                        enable_debug_particles_act_ntf = false;
+                    }else{
+                        ESP_LOGE(GATTS_TABLE_TAG, "unknown descr value");
+                        esp_log_buffer_hex(GATTS_TABLE_TAG, param->write.value, param->write.len);
+                    }
                 } else {
                   ESP_LOGE(GATTS_TABLE_TAG, "Handle this write event!!!");
                 }
@@ -430,6 +484,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
             enable_location_act_ntf = false;
             enable_location_string_act_ntf = false;
             enable_orientation_sensor_ntf = false;
+            enable_debug_ranges_act_ntf = false;
+            enable_debug_particles_act_ntf = false;
             esp_ble_gap_start_advertising(&adv_params);
             break;
         case ESP_GATTS_CREAT_ATTR_TAB_EVT:{
@@ -443,7 +499,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
             else {
                 ESP_LOGI(GATTS_TABLE_TAG, "create attribute table successfully, the number handle = %d\n",param->add_attr_tab.num_handle);
                 memcpy(handle_table, param->add_attr_tab.handles, sizeof(handle_table));
-                esp_ble_gatts_start_service(handle_table[IDX_SVC]);
+                esp_ble_gatts_start_service(handle_table[IDX_SVC_POS]);
             }
             break;
         }
@@ -488,18 +544,7 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
     } while (0);
 }
 
-// static void new_orientation(uint8_t* raw) {
-//   int16_t omega     = *(int16_t*) (&raw[0]);
-//   int16_t phi       = *(int16_t*) (&raw[2]);
-//   int16_t psi       = *(int16_t*) (&raw[4]);
-//   int16_t xm        = *(int16_t*) (&raw[6]);
-//   int16_t ym        = *(int16_t*) (&raw[8]);
-//   int16_t zm        = *(int16_t*) (&raw[10]);
-
-//   new_orientation_cb(omega, phi, psi, xm, ym, zm);
-// }
-
-esp_err_t set_new_location() {
+esp_err_t ble_set_new_location() {
 
   esp_err_t ret;
   ret = esp_ble_gatts_set_attr_value(handle_table[IDX_CHAR_VAL_POS], sizeof(current_position), (uint8_t*) &current_position);
@@ -517,12 +562,12 @@ esp_err_t set_new_location() {
     }
   }
 
-    sprintf(current_position_string, "%d, %d, %d (%d, %d, %d) - %d", 
+    int len = sprintf(current_position_string, "(%d, %d, %d) (%d, %d, %d) - %d", 
         current_position.pos.x, current_position.pos.y, current_position.pos.z,
         current_position.std.x, current_position.std.y, current_position.std.z,
         current_position.is_valid);
 
-    ret = esp_ble_gatts_set_attr_value(handle_table[IDX_CHAR_VAL_POS_STR], sizeof(current_position_string), (uint8_t*) current_position_string);
+    ret = esp_ble_gatts_set_attr_value(handle_table[IDX_CHAR_VAL_POS_STR], len, (uint8_t*) current_position_string);
   if (ret) {
     ESP_LOGE(GATTS_TABLE_TAG, "current_position_string esp_ble_gatts_set_attr_value failed: %d", ret);
     return ESP_FAIL;
@@ -536,13 +581,64 @@ esp_err_t set_new_location() {
       return ESP_FAIL;
     }
   }
+  return ESP_OK;
+}
+
+esp_err_t set_new_ranges(int ranges[6]) {
+
+  esp_err_t ret;
+  ret = esp_ble_gatts_set_attr_value(handle_table[IDX_CHAR_VAL_DEBUG_RANGES], sizeof(int) * 6, (uint8_t*) ranges);
+  if (ret) {
+    ESP_LOGE(GATTS_TABLE_TAG, "current_position esp_ble_gatts_set_attr_value failed: %d", ret);
+    return ESP_FAIL;
+  }
+
+  if (enable_debug_ranges_act_ntf) {
+    ESP_LOGD(GATTS_TABLE_TAG, "enable_location_act_ntf");
+    ret = esp_ble_gatts_send_indicate(profile_tab[PROFILE_APP_IDX].gatts_if, profile_tab[PROFILE_APP_IDX].conn_id, handle_table[IDX_CHAR_VAL_DEBUG_RANGES], sizeof(int) * 6, (uint8_t*) ranges, false);
+    if (ret) {
+      ESP_LOGE(GATTS_TABLE_TAG, "set_new_orientation_act_value esp_ble_gatts_send_indicate failed: %d", ret);
+      return ESP_FAIL;
+    }
+  }
 
   return ESP_OK;
+}
+
+esp_err_t ble_push_particles(particle_t* particles, int length) {
+
+//   esp_err_t ret;
+  
+//   if (length > 2) length = 2;
+//   for (int i =0; i< length; i++)
+//   {
+//       memcpy((uint8_t*) &ble_particles[i*10], (uint8_t*) &particles[i], 10);
+//   }
+
+//   ret = esp_ble_gatts_set_attr_value(handle_table[IDX_CHAR_VAL_DEBUG_PARTICLES], length * 10, (uint8_t*)particles);
+
+//   if (ret) {
+//     ESP_LOGE(GATTS_TABLE_TAG, "current_position esp_ble_gatts_set_attr_value failed: %d", ret);
+//     return ESP_FAIL;
+//   }
+
+//   if (enable_debug_particles_act_ntf) {
+//     ESP_LOGD(GATTS_TABLE_TAG, "enable_location_act_ntf");
+//     ret = esp_ble_gatts_send_indicate(profile_tab[PROFILE_APP_IDX].gatts_if, profile_tab[PROFILE_APP_IDX].conn_id, handle_table[IDX_CHAR_VAL_DEBUG_PARTICLES], length * 10, (uint8_t*)particles, false);
+//     if (ret) {
+//       ESP_LOGE(GATTS_TABLE_TAG, "set_new_orientation_act_value esp_ble_gatts_send_indicate failed: %d", ret);
+//       return ESP_FAIL;
+//     }
+//   }
+
+  return ESP_OK;
+
 }
 
 esp_err_t start_bluetooth(void)
 {
     esp_err_t ret;
+
 
 
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
